@@ -100,6 +100,13 @@ def main():
         action="store_true",
         help="Also check coordinates in addition to data variables",
     )
+    parser.add_argument(
+        "-o",
+        "--output",
+        type=str,
+        default="linting_report.csv",
+        help="Location to save output file",
+    )
     args = parser.parse_args()
 
     console = Console()
@@ -134,8 +141,8 @@ def main():
 
     dfs_combined = pd.concat(dfs, ignore_index=True)
     # Optionally, save the combined report to a CSV file
-    dfs_combined.to_csv("linting_report.csv", index=False)
-    console.print("Combined linting report saved to linting_report.csv")
+    dfs_combined.to_csv(args.output, index=False)
+    console.print(f"Combined linting report saved to {args.output}")
 
 
 if __name__ == "__main__":
