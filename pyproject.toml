@@ -34,6 +34,9 @@ include = ["xinter*"]
 [tool.ruff]
 exclude = [".venv"]
 
+[tool.ruff.lint.per-file-ignores]
+"xinter/linters.py" = ["F401"]
+
 [dependency-groups]
 dev = [
     "bump-my-version>=1.2.4",
