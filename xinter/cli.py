@@ -20,7 +20,7 @@ def lint_dataset(
         check_coords: Whether to also check coordinates in addition to data variables
 
     Returns:
-        A pandas DataFrame summarizing the linting results.
+        A dict summarizing the linting results.
     """
 
     dataset = xr.open_dataset(file_path, group=group)
