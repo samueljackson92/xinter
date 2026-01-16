@@ -1,0 +1,46 @@
+[project]
+name = "xinter"
+version = "0.1.0"
+requires-python = ">=3.11"
+description = "A linting tool for xarray datasets"
+license = {text = "MIT"}
+
+authors = [
+  {name = "Samuel Jackson", email = "samuel.jackson@ukaea.uk"}
+]
+
+maintainers = [
+  {name = "Samuel Jackson", email = "samuel.jackson@ukaea.uk"}
+]
+
+readme = "README.md"
+classifiers = [
+  "Development Status :: 4 - Beta",
+  "Programming Language :: Python :: 3.11"
+]
+
+dependencies = [
+  "pandas>=2.3.3",
+  "pint-xarray>=0.6.0",
+  "pydantic>=2.12.5",
+  "rich>=14.2.0",
+  "xarray[io]>=2024.7.0",
+]
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["xinter*"]
+
+[tool.ruff]
+exclude = [".venv"]
+
+[dependency-groups]
+dev = [
+    "bump-my-version>=1.2.4",
+    "pylint>=3.3.9",
+    "ruff>=0.14.8",
+    "ty>=0.0.12",
+]
+
+[project.scripts]
+xl = "xinter.cli:main"
