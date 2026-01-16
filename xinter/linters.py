@@ -282,7 +282,7 @@ class NegativeValuesChecker(DataArrayChecker):
         value = (var < 0).sum().item() / var.size
         return CheckerResult(
             value=value,
-            message=f"Proportion of negative values: {value}%",
+            message=f"Proportion of negative values: {value * 100}%",
             success=True,
         )
 
@@ -304,7 +304,7 @@ class ZeroValuesChecker(DataArrayChecker):
         success = value < self.tolerance
         return CheckerResult(
             value=value,
-            message=f"Proportion of zeros is greater than {self.tolerance}: {value}%",
+            message=f"Proportion of zeros is greater than {self.tolerance * 100}: {value * 100}%",
             success=success,
         )
 
@@ -346,7 +346,7 @@ class InfiniteValuesChecker(DataArrayChecker):
         success = value == 0
         return CheckerResult(
             value=value,
-            message=f"Array contains infinite values: {value}%",
+            message=f"Array contains infinite values: {value * 100}%",
             success=success,
         )
 
