@@ -1,3 +1,5 @@
+"""Command-line interface for the XR Linter."""
+
 from typing import Optional
 import argparse
 import pandas as pd
@@ -120,7 +122,7 @@ def main():
             table.add_column("Message")
 
             for check_name, results in checks.items():
-                if check_name == "type" or check_name == "file_path":
+                if check_name in ("type", "file_path"):
                     continue
                 for var_name, value in results.items():
                     if not value.success:

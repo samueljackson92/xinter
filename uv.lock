@@ -1443,7 +1443,7 @@ io = [
 ]
 
 [[package]]
-name = "xr-linter"
+name = "xinter"
 version = "0.1.0"
 source = { virtual = "." }
 dependencies = [

@@ -4,11 +4,13 @@ from abc import ABC, abstractmethod
 from scipy.stats import entropy
 import numpy as np
 import xarray as xr
-import pint_xarray  # noqa: F401
+import pint_xarray  # pylint: disable=unused-import
 from pydantic import BaseModel
 
 
 class CheckerResult(BaseModel):
+    """Result of a checker applied to a DataArray."""
+
     value: bool | str | float | int
     message: str
     success: bool
@@ -257,9 +259,10 @@ class DuplicateValuesChecker(DataArrayChecker):
         duplicates = counts[counts > 1].sum().item()
         value = duplicates / var.size
         success = value < self.tolerance
+        message = f"High proportion of duplicate values (> {self.tolerance * 100}): {value * 100}%"
         return CheckerResult(
             value=value,
-            message=f"High proportion of duplicate values (> {self.tolerance * 100}): {value * 100}%",
+            message=message,
             success=success,
         )
 
@@ -480,10 +483,10 @@ class UnitsChecker(DataArrayChecker):
 class UnitsParsableChecker(DataArrayChecker):
     """Check if the units attribute can be parsed by pint_xarray.
 
-    Returns True if the units can be successfully parsed by [pint](https://pint.readthedocs.io/en/stable/)'s unit registry,
-    False if parsing fails or if no units attribute is present. This helps identify
-    malformed or non-standard unit strings that may cause issues in unit-aware
-    computations.
+    Returns True if the units can be successfully parsed by
+    [pint](https://pint.readthedocs.io/en/stable/)'s unit registry, False if parsing fails or
+    if no units attribute is present. This helps identify malformed or non-standard unit
+    strings that may cause issues in unit-aware computations.
     """
 
     name = "Units parsable"
@@ -505,7 +508,7 @@ class UnitsParsableChecker(DataArrayChecker):
                 message="Units are parsable.",
                 success=True,
             )
-        except Exception:
+        except (ValueError, TypeError, AttributeError):
             return CheckerResult(
                 value=False,
                 message="Units are not parsable.",
