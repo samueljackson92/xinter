@@ -20,6 +20,7 @@ classifiers = [
 ]
 
 dependencies = [
+  "joblib>=1.5.3",
   "pandas>=2.3.3",
   "pint-xarray>=0.6.0",
   "pydantic>=2.12.5",

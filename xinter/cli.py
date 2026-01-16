@@ -6,6 +6,7 @@ import pandas as pd
 import xarray as xr
 from rich.console import Console
 from rich.table import Table
+from joblib import Parallel, delayed
 from xinter.linters import LinterRegistry
 
 
@@ -107,15 +108,27 @@ def main():
         default="linting_report.csv",
         help="Location to save output file",
     )
+    parser.add_argument(
+        "-n",
+        "--num-jobs",
+        type=int,
+        default=-1,
+        help="Number of parallel jobs to run (default: use all available cores)",
+    )
+
     args = parser.parse_args()
 
     console = Console()
 
-    # Placeholder for linting logic
-    dfs = []
-    for file in args.files:
-        reports = lint_dataset(file, group=args.group, check_coords=args.coords)
+    # Run linting in parallel for all files
+    results = Parallel(n_jobs=args.num_jobs)(
+        delayed(lint_dataset)(file, group=args.group, check_coords=args.coords)
+        for file in args.files
+    )
 
+    # Process and display results after parallel execution
+    dfs = []
+    for file, reports in zip(args.files, results):
         reports_df = reports_to_dataframe(reports)
         dfs.append(reports_df)
 
