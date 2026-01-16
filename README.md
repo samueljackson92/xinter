@@ -44,25 +44,25 @@ pip install -e .
 Lint a single file:
 
 ```bash
-xinter mydata.zarr
+xl mydata.zarr
 ```
 
 Lint multiple files:
 
 ```bash
-xinter file1.nc file2.zarr file3.nc
+xl file1.nc file2.zarr file3.nc
 ```
 
 Check coordinates in addition to data variables:
 
 ```bash
-xinter mydata.zarr --coords
+xl mydata.zarr --coords
 ```
 
 Specify a group within the dataset:
 
 ```bash
-xinter mydata.zarr --group=/equilibrium
+xl mydata.zarr --group=/equilibrium
 ```
 
 ### Python API
