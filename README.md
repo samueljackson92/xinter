@@ -8,13 +8,14 @@ xinter provides automated data quality checks for xarray datasets, helping you i
 
 ## Features
 
-- **20+ Built-in Checkers**: Comprehensive checks for data quality including:
+- **25 Built-in Checkers**: Comprehensive checks for data quality including:
   - Missing values (NaNs)
   - Statistical properties (mean, std, skewness, kurtosis)
   - Outlier detection (IQR method)
   - Data type validation
   - Units verification and parsing
   - Coordinate uniformity checks
+  - Shape and size validation
   - And many more...
 
 - **Extensible Architecture**: Easily add custom checkers using a simple decorator pattern
@@ -89,26 +90,30 @@ df.to_csv("lint_report.csv", index=False)
 | Checker | Description |
 |---------|-------------|
 | **NaNs** | Proportion of NaN values |
-| **Mean** | Arithmetic mean |
-| **Standard deviation** | Data spread measure |
-| **IQR outliers** | Outliers using interquartile range method |
-| **Range** | Maximum minus minimum |
+| **Mean** | Mean value |
+| **Standard deviation** | Standard deviation |
+| **IQR outliers** | Proportion of values outside IQR range |
+| **Range** | Range of values (max - min) |
 | **Max** | Maximum value |
 | **Min** | Minimum value |
-| **Duplicate values** | Proportion of repeated values |
+| **Duplicate values** | Proportion of duplicate values |
 | **Negative values** | Proportion of negative values |
 | **Zero values** | Proportion of zero values |
-| **Constant values** | Whether all values are identical |
+| **Constant values** | Whether all values are constant |
 | **Infinite values** | Proportion of infinite values |
-| **Skewness** | Distribution asymmetry measure |
-| **Kurtosis** | Distribution tailedness measure |
-| **Zero inflation** | Zero-inflation metric |
-| **Entropy** | Shannon entropy of distribution |
-| **Data type** | Variable dtype |
+| **Skewness** | Skewness of the distribution |
+| **Kurtosis** | Kurtosis of the distribution |
+| **Entropy** | Shannon entropy of the distribution |
+| **Data type** | Data type of the variable |
 | **Units** | Units attribute |
 | **Units parsable** | Whether units can be parsed by pint |
 | **Diff** | Mean of first differences |
 | **Diff constant** | Whether differences are constant (coordinates only) |
+| **Shape** | Shape of the variable |
+| **Size** | Total number of elements |
+| **Variable name** | Name of the variable |
+| **Dimension names** | Names of the dimensions |
+| **Constant along dimension** | Whether values are constant along the first dimension |
 
 ## Creating Custom Checkers
 
