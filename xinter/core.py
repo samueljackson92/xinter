@@ -27,7 +27,10 @@ def lint_dataset_with_error_handling(
 
 
 def lint_dataset(
-    obj: str | xr.Dataset, group: Optional[str] = None, check_coords: bool = False
+    obj: str | xr.Dataset,
+    group: Optional[str] = None,
+    check_coords: bool = False,
+    engine: Optional[str] = None,
 ):
     """Lint an xarray dataset using all registered checkers.
 
@@ -41,7 +44,7 @@ def lint_dataset(
     """
 
     if isinstance(obj, str):
-        dataset = xr.open_dataset(obj, group=group)
+        dataset = xr.open_dataset(obj, group=group, engine=engine)
     else:
         dataset = obj
 
