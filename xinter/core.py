@@ -27,12 +27,12 @@ def lint_dataset_with_error_handling(
 
 
 def lint_dataset(
-    file_path: str, group: Optional[str] = None, check_coords: bool = False
+    obj: str | xr.Dataset, group: Optional[str] = None, check_coords: bool = False
 ):
     """Lint an xarray dataset using all registered checkers.
 
     Args:
-        file_path: Path to the xarray-compatible file
+        obj: Path to the xarray-compatible file or an xarray.Dataset
         group: Optional group name for datasets with groups
         check_coords: Whether to also check coordinates in addition to data variables
 
@@ -40,7 +40,10 @@ def lint_dataset(
         A dict summarizing the linting results.
     """
 
-    dataset = xr.open_dataset(file_path, group=group)
+    if isinstance(obj, str):
+        dataset = xr.open_dataset(obj, group=group)
+    else:
+        dataset = obj
 
     # Get all registered checkers and instantiate them
     checkers = [checker_class() for checker_class in LinterRegistry.get_checkers()]
@@ -51,15 +54,22 @@ def lint_dataset(
 
     reports = {}
     for target in targets:
+        # checks["type"] = target
+        # checks["file_path"] = file_path
+        # checks["group"] = group if group else "N/A"
         checks = {}
-        checks["type"] = target
-        checks["file_path"] = file_path
-        checks["group"] = group if group else "N/A"
         for checker in checkers:
             result = checker.check_dataset(dataset, target=target)
             checks[checker.name] = result
 
-        reports[target] = checks
+        report = {
+            "file_path": obj if isinstance(obj, str) else "N/A",
+            "group": group if group else "N/A",
+            "type": target,
+            "checks": checks,
+        }
+
+        reports[target] = report
 
     return reports
 
@@ -67,11 +77,7 @@ def lint_dataset(
 def reports_to_dataframe(results: list) -> pd.DataFrame:
     # Process and display results after parallel execution
     dfs = []
-    for file_path, reports, error in results:
-        if error is not None:
-            # Handle error case
-            continue
-
+    for reports in results:
         reports_df = _report_to_dataframe(reports)
         dfs.append(reports_df)
 
@@ -97,9 +103,7 @@ def _report_to_dataframe(reports: dict) -> pd.DataFrame:
     for target_type, checks in reports.items():
         file_path = checks.get("file_path", "unknown")
         group = checks.get("group", "N/A")
-        for checker_name, results in checks.items():
-            if checker_name in ("type", "file_path", "group"):
-                continue
+        for checker_name, results in checks.get("checks", {}).items():
             for var_name, result in results.items():
                 rows.append(
                     {

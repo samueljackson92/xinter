@@ -19,7 +19,7 @@ def gather_results(console, results):
             console.print(f"[red]Error linting {file_path}: {error}[/red]")
         else:
             console.print(f"[green]Successfully linted {file_path}[/green]")
-        output.append(result)
+            output.append(reports)
     return output
 
 
@@ -92,9 +92,9 @@ def main():
     )
 
     if args.output.endswith(".parquet"):
-        dfs.to_parquet(args.output, index=False)
+        dfs.to_parquet(args.output, index=True)
     elif args.output.endswith(".csv"):
-        dfs.to_csv(args.output, index=False)
+        dfs.to_csv(args.output, index=True)
     else:
         console.print(
             "[red]Unsupported output format. Please use .parquet or .csv extension.[/red]"
