@@ -11,7 +11,7 @@ from pydantic import BaseModel
 class CheckerResult(BaseModel):
     """Result of a checker applied to a DataArray."""
 
-    value: bool | str | float | int
+    value: bool | str | float | int | tuple[int, ...]
     message: str
     success: bool
 
@@ -107,19 +107,37 @@ class LinterRegistry:
         cls._checkers = []
 
 
+class NumericDataArrayChecker(DataArrayChecker):
+    """Base class for checkers that only apply to numeric DataArrays."""
+
+    def check(self, var: xr.DataArray) -> CheckerResult:
+        if not np.issubdtype(var.dtype, np.number):
+            return CheckerResult(
+                value="N/A",
+                message="Variable is not numeric; check skipped.",
+                success=True,
+            )
+        return self.check_numeric(var)
+
+    @abstractmethod
+    def check_numeric(self, var: xr.DataArray) -> CheckerResult:
+        """Check a numeric DataArray. Subclasses must implement this method."""
+        raise NotImplementedError("Subclasses must implement this method.")
+
+
 @LinterRegistry.register()
-class NaNsChecker(DataArrayChecker):
+class NaNsChecker(NumericDataArrayChecker):
     """Check for the proportion of NaN (Not a Number) values in the array.
 
     Returns a float between 0 and 1, where 0 means no NaN values and 1 means all values are NaN.
     High proportions of NaN values may indicate data quality issues or missing measurements.
     """
 
-    name = "NaNs"
+    name = "nan_values"
     description = "Proportion of NaN values"
     tolerance: float = 0.2
 
-    def check(self, var: xr.DataArray) -> CheckerResult:
+    def check_numeric(self, var: xr.DataArray) -> CheckerResult:
         value = var.isnull().sum().item() / var.size
         success = value <= self.tolerance
         return CheckerResult(
@@ -128,23 +146,23 @@ class NaNsChecker(DataArrayChecker):
 
 
 @LinterRegistry.register()
-class MeanChecker(DataArrayChecker):
+class MeanChecker(NumericDataArrayChecker):
     """Calculate the arithmetic mean of all values in the array.
 
     The mean provides a measure of central tendency and can help identify
     if values are centered around expected ranges.
     """
 
-    name = "Mean"
+    name = "mean"
     description = "Mean value"
 
-    def check(self, var: xr.DataArray) -> CheckerResult:
-        value = var.mean().item()
+    def check_numeric(self, var: xr.DataArray) -> CheckerResult:
+        value = np.nanmean(var.values)
         return CheckerResult(value=value, message=f"Mean value: {value}", success=True)
 
 
 @LinterRegistry.register()
-class StdChecker(DataArrayChecker):
+class StdChecker(NumericDataArrayChecker):
     """Calculate the standard deviation of all values in the array.
 
     Standard deviation measures the spread or dispersion of values around the mean.
@@ -152,18 +170,18 @@ class StdChecker(DataArrayChecker):
     more variability in the data.
     """
 
-    name = "Standard deviation"
+    name = "std"
     description = "Standard deviation"
 
-    def check(self, var: xr.DataArray) -> CheckerResult:
-        value = var.std().item()
+    def check_numeric(self, var: xr.DataArray) -> CheckerResult:
+        value = np.nanstd(var.values)
         return CheckerResult(
             value=value, message=f"Standard deviation: {value}", success=True
         )
 
 
 @LinterRegistry.register()
-class IQROutliersChecker(DataArrayChecker):
+class IQROutliersChecker(NumericDataArrayChecker):
     """Detect outliers using the Interquartile Range (IQR) method.
 
     Values are considered outliers if they fall below Q1 - 1.5*IQR or above Q3 + 1.5*IQR,
@@ -171,10 +189,10 @@ class IQROutliersChecker(DataArrayChecker):
     Returns the proportion of values identified as outliers (0 to 1).
     """
 
-    name = "IQR outliers"
+    name = "iqr"
     description = "Proportion of values outside IQR range"
 
-    def check(self, var: xr.DataArray) -> CheckerResult:
+    def check_numeric(self, var: xr.DataArray) -> CheckerResult:
         q1 = var.quantile(0.25).item()
         q3 = var.quantile(0.75).item()
         iqr = q3 - q1
@@ -188,17 +206,17 @@ class IQROutliersChecker(DataArrayChecker):
 
 
 @LinterRegistry.register()
-class RangeChecker(DataArrayChecker):
+class RangeChecker(NumericDataArrayChecker):
     """Calculate the range of values (maximum minus minimum).
 
     The range provides a simple measure of the spread of data. Large ranges may indicate
     high variability or the presence of outliers.
     """
 
-    name = "Range"
+    name = "range"
     description = "Range of values (max - min)"
 
-    def check(self, var: xr.DataArray) -> CheckerResult:
+    def check_numeric(self, var: xr.DataArray) -> CheckerResult:
         value = var.max().item() - var.min().item()
         return CheckerResult(
             value=value, message=f"Range of values: {value}", success=True
@@ -206,17 +224,17 @@ class RangeChecker(DataArrayChecker):
 
 
 @LinterRegistry.register()
-class MaxChecker(DataArrayChecker):
+class MaxChecker(NumericDataArrayChecker):
     """Find the maximum value in the array.
 
     Useful for identifying the upper bound of the data and detecting potentially
     unrealistic values that exceed expected limits.
     """
 
-    name = "Max"
+    name = "max"
     description = "Maximum value"
 
-    def check(self, var: xr.DataArray) -> CheckerResult:
+    def check_numeric(self, var: xr.DataArray) -> CheckerResult:
         value = var.max().item()
         return CheckerResult(
             value=value, message=f"Maximum value: {value}", success=True
@@ -224,17 +242,17 @@ class MaxChecker(DataArrayChecker):
 
 
 @LinterRegistry.register()
-class MinChecker(DataArrayChecker):
+class MinChecker(NumericDataArrayChecker):
     """Find the minimum value in the array.
 
     Useful for identifying the lower bound of the data and detecting potentially
     unrealistic values that fall below expected limits.
     """
 
-    name = "Min"
+    name = "min"
     description = "Minimum value"
 
-    def check(self, var: xr.DataArray) -> CheckerResult:
+    def check_numeric(self, var: xr.DataArray) -> CheckerResult:
         value = var.min().item()
         return CheckerResult(
             value=value, message=f"Minimum value: {value}", success=True
@@ -250,7 +268,7 @@ class DuplicateValuesChecker(DataArrayChecker):
     patterns in the data.
     """
 
-    name = "Duplicate values"
+    name = "duplicate_values"
     description = "Proportion of duplicate values"
     tolerance: float = 0.95
 
@@ -268,17 +286,17 @@ class DuplicateValuesChecker(DataArrayChecker):
 
 
 @LinterRegistry.register()
-class NegativeValuesChecker(DataArrayChecker):
+class NegativeValuesChecker(NumericDataArrayChecker):
     """Calculate the proportion of negative values in the array.
 
     Useful for identifying variables that should be strictly non-negative
     (e.g., physical quantities like distance, count, or absolute measurements).
     """
 
-    name = "Negative values"
+    name = "negative_values"
     description = "Proportion of negative values"
 
-    def check(self, var: xr.DataArray) -> CheckerResult:
+    def check_numeric(self, var: xr.DataArray) -> CheckerResult:
         value = (var < 0).sum().item() / var.size
         return CheckerResult(
             value=value,
@@ -288,18 +306,18 @@ class NegativeValuesChecker(DataArrayChecker):
 
 
 @LinterRegistry.register()
-class ZeroValuesChecker(DataArrayChecker):
+class ZeroValuesChecker(NumericDataArrayChecker):
     """Calculate the proportion of exact zero values in the array.
 
     High proportions of zeros may indicate missing data encoded as zeros,
     sparse data, or measurement periods with no activity.
     """
 
-    name = "Zero values"
+    name = "zero_values"
     description = "Proportion of zero values"
     tolerance: float = 0.95
 
-    def check(self, var: xr.DataArray) -> CheckerResult:
+    def check_numeric(self, var: xr.DataArray) -> CheckerResult:
         value = (var == 0).sum().item() / var.size
         success = value < self.tolerance
         return CheckerResult(
@@ -318,7 +336,7 @@ class ConstantValuesChecker(DataArrayChecker):
     legitimately constant parameters.
     """
 
-    name = "Constant values"
+    name = "constant_values"
     description = "Whether all values are constant"
 
     def check(self, var: xr.DataArray) -> CheckerResult:
@@ -331,17 +349,17 @@ class ConstantValuesChecker(DataArrayChecker):
 
 
 @LinterRegistry.register()
-class InfiniteValuesChecker(DataArrayChecker):
+class InfiniteValuesChecker(NumericDataArrayChecker):
     """Calculate the proportion of infinite values (both +inf and -inf).
 
     Infinite values often result from division by zero or numerical overflow
     in calculations, and typically indicate data quality or processing issues.
     """
 
-    name = "Infinite values"
+    name = "infinite_values"
     description = "Proportion of infinite values"
 
-    def check(self, var: xr.DataArray) -> CheckerResult:
+    def check_numeric(self, var: xr.DataArray) -> CheckerResult:
         value = np.isinf(var.values).sum().item() / var.size
         success = value == 0
         return CheckerResult(
@@ -352,7 +370,7 @@ class InfiniteValuesChecker(DataArrayChecker):
 
 
 @LinterRegistry.register()
-class SkewnessChecker(DataArrayChecker):
+class SkewnessChecker(NumericDataArrayChecker):
     """Calculate the skewness (third standardized moment) of the distribution.
 
     Skewness measures the asymmetry of the distribution:
@@ -362,10 +380,10 @@ class SkewnessChecker(DataArrayChecker):
     Returns 0 if standard deviation is 0 or sample size < 3.
     """
 
-    name = "Skewness"
+    name = "skewness"
     description = "Skewness of the distribution"
 
-    def check(self, var: xr.DataArray) -> CheckerResult:
+    def check_numeric(self, var: xr.DataArray) -> CheckerResult:
         mean = var.mean().item()
         std = var.std().item()
         n = var.size
@@ -384,7 +402,7 @@ class SkewnessChecker(DataArrayChecker):
 
 
 @LinterRegistry.register()
-class KurtosisChecker(DataArrayChecker):
+class KurtosisChecker(NumericDataArrayChecker):
     """Calculate the excess kurtosis (fourth standardized moment) of the distribution.
 
     Kurtosis measures the "tailedness" of the distribution:
@@ -394,10 +412,10 @@ class KurtosisChecker(DataArrayChecker):
     Returns 0 if standard deviation is 0 or sample size < 4.
     """
 
-    name = "Kurtosis"
+    name = "kurtosis"
     description = "Kurtosis of the distribution"
 
-    def check(self, var: xr.DataArray) -> CheckerResult:
+    def check_numeric(self, var: xr.DataArray) -> CheckerResult:
         mean = var.mean().item()
         std = var.std().item()
         n = var.size
@@ -416,7 +434,7 @@ class KurtosisChecker(DataArrayChecker):
 
 
 @LinterRegistry.register()
-class EntropyChecker(DataArrayChecker):
+class EntropyChecker(NumericDataArrayChecker):
     """Calculate the Shannon entropy of the value distribution.
 
     Entropy measures the randomness or unpredictability of the data:
@@ -425,10 +443,10 @@ class EntropyChecker(DataArrayChecker):
     Useful for assessing data diversity and information content.
     """
 
-    name = "Entropy"
+    name = "entropy"
     description = "Shannon entropy of the distribution"
 
-    def check(self, var: xr.DataArray) -> CheckerResult:
+    def check_numeric(self, var: xr.DataArray) -> CheckerResult:
         _, counts = np.unique(var.values, return_counts=True)
         probabilities = counts / counts.sum()
         entropy_value = entropy(probabilities)
@@ -447,7 +465,7 @@ class VariableTypesChecker(DataArrayChecker):
     Useful for verifying expected data types and identifying type inconsistencies.
     """
 
-    name = "Data type"
+    name = "data_type"
     description = "Data type of the variable"
 
     def check(self, var: xr.DataArray) -> CheckerResult:
@@ -466,7 +484,7 @@ class UnitsChecker(DataArrayChecker):
     Helps verify that variables have proper unit documentation for physical quantities.
     """
 
-    name = "Units"
+    name = "units"
     description = "Units attribute"
 
     def check(self, var: xr.DataArray) -> CheckerResult:
@@ -489,7 +507,7 @@ class UnitsParsableChecker(DataArrayChecker):
     strings that may cause issues in unit-aware computations.
     """
 
-    name = "Units parsable"
+    name = "units_parsable"
     description = "Whether units can be parsed by pint"
 
     def check(self, var: xr.DataArray) -> CheckerResult:
@@ -517,17 +535,17 @@ class UnitsParsableChecker(DataArrayChecker):
 
 
 @LinterRegistry.register()
-class DiffChecker(DataArrayChecker):
+class DiffChecker(NumericDataArrayChecker):
     """Calculate the mean of first differences along the first dimension.
 
     Useful for detecting trends or average rate of change in sequential data.
     Positive values indicate increasing trends, negative values indicate decreasing trends.
     """
 
-    name = "Diff"
+    name = "diff"
     description = "Mean of first differences"
 
-    def check(self, var: xr.DataArray) -> CheckerResult:
+    def check_numeric(self, var: xr.DataArray) -> CheckerResult:
         return CheckerResult(
             value=var.diff(dim=list(var.dims)[0]).mean().item(),
             message=f"Mean of first differences: {var.diff(dim=list(var.dims)[0]).mean().item()}",
@@ -536,7 +554,7 @@ class DiffChecker(DataArrayChecker):
 
 
 @LinterRegistry.register()
-class DiffConstantChecker(DataArrayChecker):
+class DiffConstantChecker(NumericDataArrayChecker):
     """Check if first differences along the first dimension are constant.
 
     This checker only runs on coordinate dimensions (1-dimensional arrays where the
@@ -545,10 +563,10 @@ class DiffConstantChecker(DataArrayChecker):
     Useful for identifying uniformly-spaced coordinate arrays.
     """
 
-    name = "Diff constant"
+    name = "diff_constant"
     description = "Whether differences are constant (coordinates only)"
 
-    def check(self, var: xr.DataArray) -> CheckerResult:
+    def check_numeric(self, var: xr.DataArray) -> CheckerResult:
         # Only check if this is a coordinate dimension
         if not self.is_coord(var):
             return CheckerResult(
@@ -563,4 +581,145 @@ class DiffConstantChecker(DataArrayChecker):
             value=constant,
             message=f"Differences are {'constant' if constant else 'not constant'}.",
             success=constant,
+        )
+
+
+@LinterRegistry.register()
+class ShapeChecker(DataArrayChecker):
+    """Report the shape of the array as a tuple.
+
+    Useful for verifying expected dimensions and identifying shape inconsistencies.
+    """
+
+    name = "shape"
+    description = "Shape of the variable"
+
+    def check(self, var: xr.DataArray) -> CheckerResult:
+        return CheckerResult(
+            value=var.shape,
+            message=f"Shape: {var.shape}",
+            success=True,
+        )
+
+
+@LinterRegistry.register()
+class SizeChecker(DataArrayChecker):
+    """Report the total number of elements in the array.
+
+    Useful for verifying expected data sizes and identifying empty or unusually large arrays.
+    """
+
+    name = "size"
+    description = "Total number of elements"
+
+    def check(self, var: xr.DataArray) -> CheckerResult:
+        return CheckerResult(
+            value=var.size,
+            message=f"Size: {var.size}",
+            success=True,
+        )
+
+
+@LinterRegistry.register()
+class VariableNameChecker(DataArrayChecker):
+    """Report the name of the variable.
+
+    Useful for verifying expected variable names and identifying naming inconsistencies.
+    """
+
+    name = "variable_name"
+    description = "Name of the variable"
+
+    def check(self, var: xr.DataArray) -> CheckerResult:
+        return CheckerResult(
+            value=str(var.name),
+            message=f"Variable name: {var.name}",
+            success=True,
+        )
+
+
+@LinterRegistry.register()
+class DimensionNameChecker(DataArrayChecker):
+    """Report the names of the dimensions of the variable.
+
+    Useful for verifying expected dimension names and identifying naming inconsistencies.
+    """
+
+    name = "dimension_names"
+    description = "Names of the dimensions"
+
+    def check(self, var: xr.DataArray) -> CheckerResult:
+        return CheckerResult(
+            value=str(var.dims),
+            message=f"Dimension names: {var.dims}",
+            success=True,
+        )
+
+
+@LinterRegistry.register()
+class ConstantAlongDimensionChecker(NumericDataArrayChecker):
+    """Check if values are constant along each dimension."""
+
+    name = "constant_along_dimension"
+    description = "Whether values are constant along the first dimension"
+
+    def check_numeric(self, var: xr.DataArray) -> CheckerResult:
+        if var.ndim < 2:
+            return CheckerResult(
+                value=False,
+                message="Variable has fewer than 2 dimensions; check skipped.",
+                success=True,
+            )
+
+        def _unique_along_dim(x, dim):
+            size = []
+            for i in range(x.shape[dim]):
+                arr = x.take(i, axis=dim)
+                size.append(len(np.unique(arr)))
+
+            return np.array(size)
+
+        for dim in var.dims:
+            unique_values = _unique_along_dim(var.values, dim=var.dims.index(dim))
+            result = (unique_values == 1).any()
+            if result:
+                return CheckerResult(
+                    value=True,
+                    message=f"Values are constant along dimension '{dim}'.",
+                    success=True,
+                )
+
+        return CheckerResult(
+            value=False,
+            message="Values are not constant along any dimension.",
+            success=True,
+        )
+
+
+class NaNAlongDimensionChecker(NumericDataArrayChecker):
+    """Check if values are NaN along each dimension."""
+
+    name = "nan_along_dimension"
+    description = "Whether values are NaN along the first dimension"
+
+    def check_numeric(self, var: xr.DataArray) -> CheckerResult:
+        if var.ndim < 2:
+            return CheckerResult(
+                value=False,
+                message="Variable has fewer than 2 dimensions; check skipped.",
+                success=True,
+            )
+
+        for dim in var.dims:
+            if var.isnull().all(dim=dim).any():
+                return CheckerResult(
+                    value=True,
+                    message=f"Values are NaN along dimension '{dim}'.",
+                    success=True,
+                )
+
+        return CheckerResult(
+            value=False,
+            message="Values are not NaN along any dimension.",
+            success=True,
         )
