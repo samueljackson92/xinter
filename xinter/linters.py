@@ -135,7 +135,7 @@ class NaNsChecker(NumericDataArrayChecker):
     High proportions of NaN values may indicate data quality issues or missing measurements.
     """
 
-    name = "nan_values"
+    name = "nan_percent"
     description = "Proportion of NaN values"
     tolerance: float = 0.2
 
@@ -144,6 +144,24 @@ class NaNsChecker(NumericDataArrayChecker):
         success = value <= self.tolerance
         return LinterResult(
             value=value, message=f"{value * 100:.2f}% NaNs found.", success=success
+        )
+
+
+@LinterRegistry.register()
+class NaNCountChecker(NumericDataArrayChecker):
+    """Check for the total count of NaN (Not a Number) values in the array.
+
+    Returns an integer representing the total number of NaN values in the array.
+    High counts of NaN values may indicate data quality issues or missing measurements.
+    """
+
+    name = "nan_count"
+    description = "Total count of NaN values"
+
+    def check_numeric(self, var: xr.DataArray) -> LinterResult:
+        value = var.isnull().sum().item()
+        return LinterResult(
+            value=value, message=f"{value} NaN values found.", success=True
         )
 
 
@@ -295,7 +313,7 @@ class NegativeValuesChecker(NumericDataArrayChecker):
     (e.g., physical quantities like distance, count, or absolute measurements).
     """
 
-    name = "negative_values"
+    name = "negative_percent"
     description = "Proportion of negative values"
 
     def check_numeric(self, var: xr.DataArray) -> LinterResult:
@@ -308,6 +326,26 @@ class NegativeValuesChecker(NumericDataArrayChecker):
 
 
 @LinterRegistry.register()
+class NegativeCountChecker(NumericDataArrayChecker):
+    """Calculate the total count of negative values in the array.
+
+    Useful for identifying variables that should be strictly non-negative
+    (e.g., physical quantities like distance, count, or absolute measurements).
+    """
+
+    name = "negative_count"
+    description = "Total count of negative values"
+
+    def check_numeric(self, var: xr.DataArray) -> LinterResult:
+        value = (var < 0).sum().item()
+        return LinterResult(
+            value=value,
+            message=f"Total count of negative values: {value}",
+            success=True,
+        )
+
+
+@LinterRegistry.register()
 class ZeroValuesChecker(NumericDataArrayChecker):
     """Calculate the proportion of exact zero values in the array.
 
@@ -315,7 +353,7 @@ class ZeroValuesChecker(NumericDataArrayChecker):
     sparse data, or measurement periods with no activity.
     """
 
-    name = "zero_values"
+    name = "zero_percent"
     description = "Proportion of zero values"
     tolerance: float = 0.95
 
@@ -326,6 +364,26 @@ class ZeroValuesChecker(NumericDataArrayChecker):
             value=value,
             message=f"Proportion of zeros is greater than {self.tolerance * 100}: {value * 100}%",
             success=success,
+        )
+
+
+@LinterRegistry.register()
+class ZeroCountChecker(NumericDataArrayChecker):
+    """Calculate the total count of exact zero values in the array.
+
+    High counts of zeros may indicate missing data encoded as zeros,
+    sparse data, or measurement periods with no activity.
+    """
+
+    name = "zero_count"
+    description = "Total count of zero values"
+
+    def check_numeric(self, var: xr.DataArray) -> LinterResult:
+        value = (var == 0).sum().item()
+        return LinterResult(
+            value=value,
+            message=f"Total count of zero values: {value}",
+            success=True,
         )
 
 
@@ -351,6 +409,28 @@ class ConstantValuesChecker(DataArrayChecker):
 
 
 @LinterRegistry.register()
+class ConstantValuesCountChecker(DataArrayChecker):
+    """Calculate the count of the most common value in the array.
+
+    High counts of a single value may indicate constant or repeated values,
+    which could suggest sensor issues, data recording problems, or expected
+    patterns in the data.
+    """
+
+    name = "constant_values_count"
+    description = "Count of the most common value"
+
+    def check(self, var: xr.DataArray) -> LinterResult:
+        _, counts = np.unique(var.values, return_counts=True)
+        value = counts.max().item()
+        return LinterResult(
+            value=value,
+            message=f"Count of the most common value: {value}",
+            success=True,
+        )
+
+
+@LinterRegistry.register()
 class InfiniteValuesChecker(NumericDataArrayChecker):
     """Calculate the proportion of infinite values (both +inf and -inf).
 
@@ -358,7 +438,7 @@ class InfiniteValuesChecker(NumericDataArrayChecker):
     in calculations, and typically indicate data quality or processing issues.
     """
 
-    name = "infinite_values"
+    name = "infinite_percent"
     description = "Proportion of infinite values"
 
     def check_numeric(self, var: xr.DataArray) -> LinterResult:
@@ -367,6 +447,27 @@ class InfiniteValuesChecker(NumericDataArrayChecker):
         return LinterResult(
             value=value,
             message=f"Array contains infinite values: {value * 100}%",
+            success=success,
+        )
+
+
+@LinterRegistry.register()
+class InfiniteValuesCountChecker(NumericDataArrayChecker):
+    """Calculate the total count of infinite values (both +inf and -inf).
+
+    Infinite values often result from division by zero or numerical overflow
+    in calculations, and typically indicate data quality or processing issues.
+    """
+
+    name = "infinite_count"
+    description = "Total count of infinite values"
+
+    def check_numeric(self, var: xr.DataArray) -> LinterResult:
+        value = np.isinf(var.values).sum().item()
+        success = value == 0
+        return LinterResult(
+            value=value,
+            message=f"Total count of infinite values: {value}",
             success=success,
         )
 

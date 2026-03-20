@@ -44,7 +44,7 @@ def lint_dataset(
     group: Optional[str] = None,
     check_coords: bool = False,
     engine: Optional[str] = None,
-) -> dict[str, Report]:
+) -> list[Report]:
     """Lint an xarray dataset using all registered checkers.
 
     Args:
@@ -53,7 +53,7 @@ def lint_dataset(
         check_coords: Whether to also check coordinates in addition to data variables
 
     Returns:
-        A dict summarizing the linting results.
+        A list summarizing the linting results.
     """
 
     if isinstance(obj, str):
@@ -68,7 +68,7 @@ def lint_dataset(
     if check_coords:
         targets.append("coords")
 
-    reports = {}
+    reports = []
     for target in targets:
         checks = {}
         for checker in checkers:
@@ -82,12 +82,12 @@ def lint_dataset(
             results=checks,
         )
 
-        reports[target] = report
+        reports.append(report)
 
     return reports
 
 
-def reports_to_dataframe(results: list[dict[str, Report]]) -> pd.DataFrame:
+def reports_to_dataframe(results: list[list[Report]]) -> pd.DataFrame:
     # Process and display results after parallel execution
     dfs = []
     for reports in results:
@@ -101,11 +101,11 @@ def reports_to_dataframe(results: list[dict[str, Report]]) -> pd.DataFrame:
         return pd.DataFrame()  # Return empty DataFrame if no successful reports
 
 
-def _report_to_dataframe(reports: dict[str, Report]) -> pd.DataFrame:
+def _report_to_dataframe(reports: list[Report]) -> pd.DataFrame:
     """Convert nested reports structure to a flat pandas DataFrame.
 
     Args:
-        reports: Dict with target types as keys and check results as values
+        reports: List of Report objects
 
     Returns:
         A pandas DataFrame with columns: file_path, target_type, variable_name,
@@ -113,10 +113,11 @@ def _report_to_dataframe(reports: dict[str, Report]) -> pd.DataFrame:
     """
     rows = []
 
-    for target_type, linter_checks in reports.items():
-        file_path = linter_checks.file_path
-        group = linter_checks.group
-        for checker_name, result in linter_checks.results.items():
+    for report in reports:
+        file_path = report.file_path
+        group = report.group
+        target_type = report.type
+        for checker_name, result in report.results.items():
             for var_name, item in result.items():
                 rows.append(
                     {
