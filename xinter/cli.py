@@ -1,9 +1,11 @@
 """Command-line interface for the XR Linter."""
 
-import sys
 import argparse
+import multiprocessing as mp
+import sys
+from functools import partial
+
 from rich.console import Console
-from joblib import Parallel, delayed
 
 from xinter.core import (
     lint_dataset_with_error_handling,
@@ -48,7 +50,7 @@ def main():
         "-o",
         "--output",
         type=str,
-        default="linting_report.parquet",
+        default="linting_report.csv",
         help="Location to save output file",
     )
     parser.add_argument(
@@ -63,15 +65,14 @@ def main():
 
     console = Console()
 
-    # Run linting in parallel for all files with a spinner
-    jobs = [
-        delayed(lint_dataset_with_error_handling)(
-            file, group=args.group, check_coords=args.coords
-        )
-        for file in args.files
-    ]
-    results = Parallel(n_jobs=args.num_jobs, return_as="generator_unordered")(jobs)
-    results = gather_results(console, results)
+    # Run linting in parallel for all files
+    linting_func = partial(
+        lint_dataset_with_error_handling, group=args.group, check_coords=args.coords
+    )
+    with mp.Pool(processes=args.num_jobs if args.num_jobs > 0 else None) as pool:
+        results = pool.imap_unordered(linting_func, args.files, chunksize=1)
+        results = gather_results(console, results)
+
     console.print("\nLinting completed.")
 
     dfs = reports_to_dataframe(results)
@@ -105,4 +106,5 @@ def main():
 
 
 if __name__ == "__main__":
+    mp.set_start_method("fork")
     main()
