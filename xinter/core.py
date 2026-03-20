@@ -57,9 +57,6 @@ def lint_dataset(
 
     reports = {}
     for target in targets:
-        # checks["type"] = target
-        # checks["file_path"] = file_path
-        # checks["group"] = group if group else "N/A"
         checks = {}
         for checker in checkers:
             result = checker.check_dataset(dataset, target=target)
