@@ -117,7 +117,7 @@ def main():
     for col in dfs.columns:
         # get the type for this column from the metadata
         dtype = type_lookup[type_lookup["checker_name"] == col]["value_type"].values[0]
-        dfs[col] = dfs[col].apply(lambda x: type_map[dtype](x))
+        dfs[col] = dfs[col].apply(type_map[dtype])
 
     if output_file.suffix == ".parquet":
         dfs.to_parquet(output_file, index=True)
