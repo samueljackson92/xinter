@@ -1,6 +1,7 @@
 """Command-line interface for the XR Linter."""
 
 import argparse
+import tempfile
 import multiprocessing as mp
 import shutil
 import sys
@@ -48,7 +49,7 @@ def main():
         "-o",
         "--output",
         type=str,
-        default="linting_report",
+        default="linting_report.parquet",
         help="Location to save output file",
     )
     parser.add_argument(
@@ -61,8 +62,9 @@ def main():
 
     args = parser.parse_args()
 
-    output = Path(args.output)
-    output.mkdir(parents=True, exist_ok=True)
+    output_file = Path(args.output)
+    tmp_dir = Path(tempfile.mkdtemp(dir="."))
+    tmp_dir.mkdir(parents=True, exist_ok=True)
 
     console = Console()
 
@@ -71,7 +73,7 @@ def main():
         lint_dataset_with_error_handling,
         group=args.group,
         check_coords=args.coords,
-        output_dir=args.output,
+        output_dir=tmp_dir,
     )
     with mp.Pool(processes=args.num_jobs if args.num_jobs > 0 else None) as pool:
         results = pool.imap_unordered(linting_func, args.files, chunksize=1)
@@ -81,7 +83,7 @@ def main():
 
     dfs = pd.concat(
         [
-            pd.read_parquet(output / f"{Path(file).stem}_linting_report.parquet")
+            pd.read_parquet(tmp_dir / f"{Path(file).stem}_linting_report.parquet")
             for file in args.files
         ],
         ignore_index=True,
@@ -117,9 +119,17 @@ def main():
         dtype = type_lookup[type_lookup["checker_name"] == col]["value_type"].values[0]
         dfs[col] = dfs[col].apply(lambda x: type_map[dtype](x))
 
-    dfs.to_parquet(f"{args.output}.parquet")
-    shutil.rmtree(args.output)  # Clean up individual parquet files
-    console.print(f"Combined linting report saved to {args.output}.parquet")
+    if output_file.suffix == ".parquet":
+        dfs.to_parquet(output_file, index=True)
+    elif output_file.suffix == ".csv":
+        dfs.to_csv(output_file, index=True)
+    else:
+        console.print(
+            "[red]Unsupported output format. Please use .parquet or .csv.[/red]"
+        )
+        sys.exit(1)
+    shutil.rmtree(tmp_dir)  # Clean up individual parquet files
+    console.print(f"Combined linting report saved to [green]{output_file}[/green]")
 
 
 if __name__ == "__main__":
