@@ -814,7 +814,7 @@ class NaNAlongDimensionChecker(NumericDataArrayChecker):
             )
 
         for dim in var.dims:
-            if var.isnull().all(dim=dim).any():
+            if var.isnull().all(dim=[dim]).any():
                 return LinterResult(
                     value=True,
                     message=f"Values are NaN along dimension '{dim}'.",

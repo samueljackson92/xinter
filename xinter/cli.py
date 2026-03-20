@@ -14,6 +14,7 @@ from xinter.core import (
 
 
 def gather_results(console, results):
+    """Gather results from parallel linting and print summary to console."""
     output = []
     for result in results:
         file_path, reports, error = result

@@ -1,3 +1,7 @@
+"""
+Core functionality for xinter: loading datasets, applying linters, and processing results.
+"""
+
 from typing import Optional, Literal
 from pydantic import BaseModel
 import xarray as xr
@@ -88,17 +92,25 @@ def lint_dataset(
 
 
 def reports_to_dataframe(results: list[list[Report]]) -> pd.DataFrame:
+    """Convert a list of lists of Report objects into a single pandas DataFrame.
+    Args:
+        results: A list of lists of Report objects, where each inner list corresponds
+        to a file's reports.
+    Returns:
+        A pandas DataFrame with columns: file_path, target_type, variable_name,
+        checker_name, value, message, success
+    """
     # Process and display results after parallel execution
     dfs = []
     for reports in results:
         reports_df = _report_to_dataframe(reports)
         dfs.append(reports_df)
 
-    if dfs:
-        dfs_combined = pd.concat(dfs, ignore_index=True)
-        return dfs_combined
-    else:
-        return pd.DataFrame()  # Return empty DataFrame if no successful reports
+    if not dfs:
+        return pd.DataFrame()  # Return empty DataFrame if no reports
+
+    dfs_combined = pd.concat(dfs, ignore_index=True)
+    return dfs_combined
 
 
 def _report_to_dataframe(reports: list[Report]) -> pd.DataFrame:
