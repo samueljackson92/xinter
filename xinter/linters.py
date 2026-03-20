@@ -11,7 +11,7 @@ from pydantic import BaseModel
 class LinterResult(BaseModel):
     """Result of a checker applied to a DataArray."""
 
-    value: bool | str | float | int | tuple[int, ...]
+    value: bool | str | float | int
     message: str
     success: bool
 
@@ -572,9 +572,10 @@ class VariableTypesChecker(DataArrayChecker):
     description = "Data type of the variable"
 
     def check(self, var: xr.DataArray) -> LinterResult:
+        dtype = str(var.dtype)
         return LinterResult(
-            value=str(var.dtype),
-            message=f"Data type: {var.dtype}",
+            value=dtype,
+            message=f"Data type: {dtype}",
             success=True,
         )
 
@@ -699,7 +700,7 @@ class ShapeChecker(DataArrayChecker):
 
     def check(self, var: xr.DataArray) -> LinterResult:
         return LinterResult(
-            value=var.shape,
+            value=str(var.shape),
             message=f"Shape: {var.shape}",
             success=True,
         )

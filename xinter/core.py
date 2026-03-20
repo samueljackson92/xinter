@@ -3,6 +3,7 @@ Core functionality for xinter: loading datasets, applying linters, and processin
 """
 
 from typing import Optional, Literal
+from pathlib import Path
 from pydantic import BaseModel
 import xarray as xr
 import pandas as pd
@@ -23,24 +24,37 @@ class Report(BaseModel):
 
 
 def lint_dataset_with_error_handling(
-    file_path: str, group: Optional[str] = None, check_coords: bool = False
+    file_path: str,
+    output_dir: str,
+    group: Optional[str] = None,
+    check_coords: bool = False,
 ):
     """Wrapper around lint_dataset that catches exceptions.
 
     Args:
         file_path: Path to the xarray-compatible file
+        output_dir: Directory to save the linting report
         group: Optional group name for datasets with groups
         check_coords: Whether to also check coordinates in addition to data variables
 
     Returns:
-        A tuple of (file_path, reports_dict, error_message).
+        A tuple of (file_path, error_message).
         If successful, error_message is None. If failed, reports_dict is None.
     """
     try:
         reports = lint_dataset(file_path, group=group, check_coords=check_coords)
-        return (file_path, reports, None)
+        reports = reports_to_dataframe([reports])
+        reports["value_type"] = reports["value"].apply(lambda x: type(x).__name__)
+        reports["value"] = reports["value"].astype(
+            str
+        )  # Ensure all values are strings for Parquet
+
+        name = Path(file_path).stem
+        reports.to_parquet(f"{output_dir}/{name}_linting_report.parquet", index=False)
+
+        return (file_path, None)
     except (ValueError, RuntimeError, IOError, KeyError) as e:
-        return (file_path, None, str(e))
+        return (file_path, str(e))
 
 
 def lint_dataset(
