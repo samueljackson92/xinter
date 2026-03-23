@@ -94,10 +94,7 @@ def main():
     logger.info("Linting completed.")
 
     dfs = pd.concat(
-        [
-            pd.read_parquet(tmp_dir / f"{Path(file).stem}_linting_report.parquet")
-            for file in args.files
-        ],
+        [pd.read_parquet(file) for file in Path(tmp_dir).glob("*.parquet")],
         ignore_index=True,
     )
 
