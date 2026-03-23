@@ -9,19 +9,26 @@ from pathlib import Path
 from functools import partial
 
 import pandas as pd
-from rich.console import Console
+from loguru import logger
 
 from xinter.core import lint_dataset_with_error_handling
 
 
-def gather_results(console, results):
+def gather_results(futures):
     """Gather results from parallel linting and print summary to console."""
-    for result in results:
-        file_path, error = result
+    for file_path, future in futures:
+        try:
+            _, error = future.get(
+                timeout=60 * 5
+            )  # Wait up to 5 minutes for each file to be linted
+        except mp.TimeoutError:
+            logger.error(f"Timeout linting {file_path}")
+            continue
+
         if error is not None:
-            console.print(f"[red]Error linting {file_path}: {error}[/red]")
+            logger.error(f"Error linting {file_path}: {result}")
         else:
-            console.print(f"[green]Successfully linted {file_path}[/green]")
+            logger.info(f"Successfully linted {file_path}")
 
 
 def main():
@@ -66,8 +73,6 @@ def main():
     tmp_dir = Path(tempfile.mkdtemp(dir="."))
     tmp_dir.mkdir(parents=True, exist_ok=True)
 
-    console = Console()
-
     # Run linting in parallel for all files
     linting_func = partial(
         lint_dataset_with_error_handling,
@@ -76,10 +81,12 @@ def main():
         output_dir=tmp_dir,
     )
     with mp.Pool(processes=args.num_jobs if args.num_jobs > 0 else None) as pool:
-        results = pool.imap_unordered(linting_func, args.files, chunksize=1)
-        gather_results(console, results)
+        futures = [
+            (item, pool.apply_async(linting_func, (item,))) for item in args.files
+        ]
+        gather_results(futures)
 
-    console.print("\nLinting completed.")
+    logger.info("Linting completed.")
 
     dfs = pd.concat(
         [
@@ -90,9 +97,7 @@ def main():
     )
 
     if dfs.empty:
-        console.print(
-            "[red]No files were successfully linted. No report generated.[/red]"
-        )
+        logger.warning("No files were successfully linted. No report generated.")
         sys.exit(0)
 
     dfs = dfs.sort_values(
@@ -124,12 +129,10 @@ def main():
     elif output_file.suffix == ".csv":
         dfs.to_csv(output_file, index=True)
     else:
-        console.print(
-            "[red]Unsupported output format. Please use .parquet or .csv.[/red]"
-        )
+        logger.error("Unsupported output format. Please use .parquet or .csv.")
         sys.exit(1)
     shutil.rmtree(tmp_dir)  # Clean up individual parquet files
-    console.print(f"Combined linting report saved to [green]{output_file}[/green]")
+    logger.info(f"Combined linting report saved to {output_file}")
 
 
 if __name__ == "__main__":

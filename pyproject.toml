@@ -20,11 +20,11 @@ classifiers = [
 ]
 
 dependencies = [
+  "loguru>=0.7.3",
   "pandas>=2.3.3",
   "pint-xarray>=0.6.0",
   "pyarrow>=23.0.1",
   "pydantic>=2.12.5",
-  "rich>=14.2.0",
   "scikit-learn>=1.8.0",
   "xarray[io]>=2024.7.0",
 ]
