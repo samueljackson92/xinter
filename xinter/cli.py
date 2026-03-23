@@ -1,5 +1,6 @@
 """Command-line interface for the XR Linter."""
 
+import os
 import argparse
 import tempfile
 import multiprocessing as mp
@@ -13,20 +14,24 @@ from loguru import logger
 
 from xinter.core import lint_dataset_with_error_handling
 
+WORKER_TIMEOUT = int(
+    os.environ.get("XINTER_WORKER_TIMEOUT", 60 * 5)
+)  # Default to 5 minutes
+
 
 def gather_results(futures):
     """Gather results from parallel linting and print summary to console."""
     for file_path, future in futures:
         try:
             _, error = future.get(
-                timeout=60 * 5
-            )  # Wait up to 5 minutes for each file to be linted
+                timeout=WORKER_TIMEOUT
+            )  # Wait up to WORKER_TIMEOUT seconds for each file to be linted
         except mp.TimeoutError:
             logger.error(f"Timeout linting {file_path}")
             continue
 
         if error is not None:
-            logger.error(f"Error linting {file_path}: {result}")
+            logger.error(f"Error linting {file_path}: {error}")
         else:
             logger.info(f"Successfully linted {file_path}")
 
