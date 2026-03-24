@@ -2,6 +2,7 @@
 Core functionality for xinter: loading datasets, applying linters, and processing results.
 """
 
+import gc
 from typing import Optional, Literal
 from pathlib import Path
 from pydantic import BaseModel
@@ -103,6 +104,10 @@ def lint_dataset(
         )
 
         reports.append(report)
+
+    dataset.close()
+    del dataset
+    gc.collect()
 
     return reports
 
