@@ -68,7 +68,7 @@ def main():
         "-n",
         "--num-jobs",
         type=int,
-        default=-1,
+        default=None,
         help="Number of parallel jobs to run (default: use all available cores)",
     )
 
@@ -85,7 +85,7 @@ def main():
         check_coords=args.coords,
         output_dir=tmp_dir,
     )
-    with mp.Pool(processes=args.num_jobs if args.num_jobs > 0 else None) as pool:
+    with mp.Pool(processes=args.num_jobs, maxtasksperchild=1) as pool:
         futures = [
             (item, pool.apply_async(linting_func, (item,))) for item in args.files
         ]
