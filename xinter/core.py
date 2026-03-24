@@ -79,6 +79,8 @@ def lint_dataset(
     else:
         dataset = obj
 
+    dataset = dataset.load()  # Load into memory to catch any loading errors early
+
     # Get all registered checkers and instantiate them
     checkers = [checker_class() for checker_class in LinterRegistry.get_checkers()]
 
