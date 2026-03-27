@@ -52,13 +52,14 @@ class DataArrayChecker(ABC):
         return len(var.dims) == 1 and var.dims[0] == var.name
 
     def check_dataset(
-        self, dataset: xr.Dataset, target: str = "data_vars"
+        self, dataset: xr.Dataset, target: str = "data_vars", channel_wise: bool = False
     ) -> dict[str, LinterResult]:
         """Apply the check method to each variable in the dataset.
 
         Args:
             dataset: The xarray Dataset to process
             target: Either 'data_vars' or 'coords' to specify what to iterate over
+            channel_wise: Whether to perform linting in a channel-wise manner on datasets where one axis is time
 
         Returns:
             A dict with variable names as keys and check results as values.
@@ -66,7 +67,16 @@ class DataArrayChecker(ABC):
         report = {}
         items = dataset.data_vars if target == "data_vars" else dataset.coords
         for var in items:
-            report[var] = self.check(dataset[var])
+            if channel_wise and dataset[var].ndim > 1:
+                # If channel-wise linting is enabled and the variable has more than 1 dimension,
+                # apply the checker to each "channel" along the first dimension.
+                for i in range(dataset[var].shape[0]):
+                    channel_name = f"{var}_channel_{i}"
+                    report[channel_name] = self.check(
+                        dataset[var].isel({dataset[var].dims[0]: i})
+                    )
+            else:
+                report[var] = self.check(dataset[var])
         return report
 
 

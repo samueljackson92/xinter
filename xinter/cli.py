@@ -71,6 +71,11 @@ def main():
         default=None,
         help="Number of parallel jobs to run (default: use all available cores)",
     )
+    parser.add_argument(
+        "--channel-wise",
+        action="store_true",
+        help="Perform linting in a channel-wise manner on datasets where one axis is time",
+    )
 
     args = parser.parse_args()
 
@@ -83,6 +88,7 @@ def main():
         lint_dataset_with_error_handling,
         group=args.group,
         check_coords=args.coords,
+        channel_wise=args.channel_wise,
         output_dir=tmp_dir,
     )
     with mp.Pool(processes=args.num_jobs, maxtasksperchild=1) as pool:

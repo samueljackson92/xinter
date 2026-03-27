@@ -29,6 +29,7 @@ def lint_dataset_with_error_handling(
     output_dir: str,
     group: Optional[str] = None,
     check_coords: bool = False,
+    channel_wise: bool = False,
 ):
     """Wrapper around lint_dataset that catches exceptions.
 
@@ -37,13 +38,16 @@ def lint_dataset_with_error_handling(
         output_dir: Directory to save the linting report
         group: Optional group name for datasets with groups
         check_coords: Whether to also check coordinates in addition to data variables
+        channel_wise: Whether to perform linting in a channel-wise manner on datasets where one axis is time
 
     Returns:
         A tuple of (file_path, error_message).
         If successful, error_message is None. If failed, reports_dict is None.
     """
     try:
-        reports = lint_dataset(file_path, group=group, check_coords=check_coords)
+        reports = lint_dataset(
+            file_path, group=group, check_coords=check_coords, channel_wise=channel_wise
+        )
         reports = reports_to_dataframe([reports])
         reports["value_type"] = reports["value"].apply(lambda x: type(x).__name__)
         reports["value"] = reports["value"].astype(
@@ -62,6 +66,7 @@ def lint_dataset(
     obj: str | xr.Dataset,
     group: Optional[str] = None,
     check_coords: bool = False,
+    channel_wise: bool = False,
     engine: Optional[str] = None,
 ) -> list[Report]:
     """Lint an xarray dataset using all registered checkers.
@@ -70,7 +75,7 @@ def lint_dataset(
         obj: Path to the xarray-compatible file or an xarray.Dataset
         group: Optional group name for datasets with groups
         check_coords: Whether to also check coordinates in addition to data variables
-
+        channel_wise: Whether to perform linting in a channel-wise manner on datasets where one axis is time
     Returns:
         A list summarizing the linting results.
     """
@@ -93,7 +98,9 @@ def lint_dataset(
     for target in targets:
         checks = {}
         for checker in checkers:
-            result = checker.check_dataset(dataset, target=target)
+            result = checker.check_dataset(
+                dataset, target=target, channel_wise=channel_wise
+            )
             checks[checker.name] = result
 
         report = Report(
