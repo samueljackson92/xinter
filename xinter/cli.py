@@ -132,10 +132,13 @@ def main():
         dtype = type_lookup[type_lookup["checker_name"] == col]["value_type"].values[0]
         dfs[col] = dfs[col].apply(type_map[dtype])
 
+    dfs.drop("variable_name", axis=1, inplace=True)
+    dfs = dfs.reset_index()
+
     if output_file.suffix == ".parquet":
-        dfs.to_parquet(output_file, index=True)
+        dfs.to_parquet(output_file)
     elif output_file.suffix == ".csv":
-        dfs.to_csv(output_file, index=True)
+        dfs.to_csv(output_file)
     else:
         logger.error("Unsupported output format. Please use .parquet or .csv.")
         sys.exit(1)
