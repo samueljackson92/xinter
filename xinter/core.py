@@ -38,7 +38,8 @@ def lint_dataset_with_error_handling(
         output_dir: Directory to save the linting report
         group: Optional group name for datasets with groups
         check_coords: Whether to also check coordinates in addition to data variables
-        channel_wise: Whether to perform linting in a channel-wise manner on datasets where one axis is time
+        channel_wise: Whether to perform linting in a channel-wise manner on datasets
+                where one axis is time
 
     Returns:
         A tuple of (file_path, error_message).
@@ -75,7 +76,8 @@ def lint_dataset(
         obj: Path to the xarray-compatible file or an xarray.Dataset
         group: Optional group name for datasets with groups
         check_coords: Whether to also check coordinates in addition to data variables
-        channel_wise: Whether to perform linting in a channel-wise manner on datasets where one axis is time
+        channel_wise: Whether to perform linting in a
+            channel-wise manner on datasets where one axis is time
     Returns:
         A list summarizing the linting results.
     """

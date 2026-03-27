@@ -59,7 +59,8 @@ class DataArrayChecker(ABC):
         Args:
             dataset: The xarray Dataset to process
             target: Either 'data_vars' or 'coords' to specify what to iterate over
-            channel_wise: Whether to perform linting in a channel-wise manner on datasets where one axis is time
+            channel_wise: Whether to perform linting in a channel-wise manner
+                on datasets where one axis is time
 
         Returns:
             A dict with variable names as keys and check results as values.
