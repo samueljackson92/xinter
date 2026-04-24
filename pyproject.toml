@@ -29,6 +29,13 @@ dependencies = [
   "xarray[io]>=2024.7.0",
 ]
 
+[project.optional-dependencies]
+gui = [
+  "dash>=2.14.0",
+  "dash-bootstrap-components>=1.5.0",
+  "plotly>=5.18.0",
+]
+
 [tool.setuptools.packages.find]
 where = ["."]
 include = ["xinter*"]
@@ -49,3 +56,4 @@ dev = [
 
 [project.scripts]
 xl = "xinter.cli:main"
+xl-gui = "xinter.gui:main"

@@ -156,6 +156,41 @@ The `reports_to_dataframe()` function produces a DataFrame with the following co
 - **message**: Descriptive message about the result
 - **success**: Boolean indicating if the check passed
 
+## Web Dashboard (GUI)
+
+xinter includes a modern, interactive web-based dashboard for visualizing linting results. The dashboard provides:
+
+- 📊 **Interactive Charts**: Explore data quality metrics with beautiful Plotly visualizations
+- 🎨 **Modern Design**: Clean, minimal interface with professional typography
+- 🔍 **Real-time Filtering**: Filter results by file and group
+- 📈 **Comprehensive Analytics**: NaN distribution, data types, statistical distributions, entropy analysis, and more
+
+### Installation
+
+Install with GUI support:
+
+```bash
+pip install -e ".[gui]"
+```
+
+### Usage
+
+Launch the dashboard for any linting report:
+
+```bash
+xl-gui linting_report.parquet
+```
+
+Or with custom options:
+
+```bash
+xl-gui thomson_scattering.parquet --port 8080 --title "Thomson Scattering Analysis"
+```
+
+The dashboard will open in your browser at `http://localhost:8050` (or your specified port).
+
+See [GUI_README.md](GUI_README.md) for detailed documentation and examples.
+
 ## Development
 
 ```bash
