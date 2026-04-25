@@ -52,6 +52,7 @@ dev = [
     "pylint>=3.3.9",
     "ruff>=0.14.8",
     "ty>=0.0.12",
+    "zensical>=0.0.36",
 ]
 
 [project.scripts]

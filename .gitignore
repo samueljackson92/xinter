@@ -219,3 +219,5 @@ __marimo__/
 *.nc
 *.zarr
 *.hdf
+
+*.DS_Store

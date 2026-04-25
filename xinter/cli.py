@@ -1,4 +1,4 @@
-"""Command-line interface for the XR Linter."""
+"""Command-line interface for the xinter."""
 
 import os
 import argparse
@@ -96,8 +96,8 @@ def gather_results(futures):
 
 
 def main():
-    """Command-line interface for the XR Linter."""
-    parser = argparse.ArgumentParser(description="XR Linter CLI")
+    """Command-line interface for the xinter."""
+    parser = argparse.ArgumentParser(description="xinter CLI")
     parser.add_argument(
         "files",
         metavar="FILE",

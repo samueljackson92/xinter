@@ -161,7 +161,6 @@ The `reports_to_dataframe()` function produces a DataFrame with the following co
 xinter includes a modern, interactive web-based dashboard for visualizing linting results. The dashboard provides:
 
 - 📊 **Interactive Charts**: Explore data quality metrics with beautiful Plotly visualizations
-- 🎨 **Modern Design**: Clean, minimal interface with professional typography
 - 🔍 **Real-time Filtering**: Filter results by file and group
 - 📈 **Comprehensive Analytics**: NaN distribution, data types, statistical distributions, entropy analysis, and more
 

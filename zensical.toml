@@ -1,0 +1,26 @@
+site_name = "Xinter Documentation"
+site_description = "A comprehensive linting and data quality checking tool for xarray datasets"
+repo_url = "https://github.com/samueljackson92/xinter"
+
+[theme]
+primary_color = "#4F46E5"  # Indigo
+accent_color = "#3B82F6"    # Blue
+
+[navigation]
+items = [
+    { title = "Home", path = "index.md" },
+    { title = "User Guide", children = [
+        { title = "Getting Started", path = "index.md" },
+        { title = "Available Linters", path = "linters.md" },
+        { title = "GUI Dashboard", path = "gui.md" },
+    ]},
+]
+
+[features]
+search = true
+code_copy = true
+dark_mode = true
+syntax_highlighting = true
+
+[social]
+github = "https://github.com/samueljackson92/xinter"
