@@ -1,5 +1,6 @@
 site_name = "Xinter Documentation"
 site_description = "A comprehensive linting and data quality checking tool for xarray datasets"
+site_url = "https://samueljackson92.github.io/xinter/"
 repo_url = "https://github.com/samueljackson92/xinter"
 
 [theme]
