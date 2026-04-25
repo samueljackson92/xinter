@@ -164,11 +164,13 @@ def main():
 
     if error_count > 0 or timeout_count > 0:
         console.print(
-            f"[yellow]⚠️  Linting completed with {error_count} errors and {timeout_count} timeouts.[/yellow]"
+            f"[yellow]⚠️  Linting completed with {error_count} errors "
+            f"and {timeout_count} timeouts.[/yellow]"
         )
     else:
         console.print(
-            f"[green bold]✅ Linting completed successfully! {success_count} files processed.[/green bold]"
+            f"[green bold]✅ Linting completed successfully! "
+            f"{success_count} files processed.[/green bold]"
         )
 
     parquet_files = list(Path(tmp_dir).glob("*.parquet"))

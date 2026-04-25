@@ -5,14 +5,17 @@ This module provides an interactive dashboard for exploring and analyzing
 xarray dataset linting reports stored in Parquet format.
 """
 
+import argparse
+import io
+import re
+from typing import Optional
+
 import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 from dash import Dash, html, dcc, Output, Input, State, dash_table
 import dash_bootstrap_components as dbc
-from pathlib import Path
-from typing import Optional
 
 
 # Modern, minimal color palette
@@ -30,9 +33,9 @@ COLORS = {
 }
 
 
-def load_parquet_file(file_path: str) -> pd.DataFrame:
+def load_parquet_file(parquet_path: str) -> pd.DataFrame:
     """Load a linting report from a Parquet file."""
-    return pd.read_parquet(file_path)
+    return pd.read_parquet(parquet_path)
 
 
 def create_dashboard(df: pd.DataFrame, title: str = "Xinter Dashboard") -> Dash:
@@ -185,7 +188,8 @@ def create_dashboard(df: pd.DataFrame, title: str = "Xinter Dashboard") -> Dash:
                                 [
                                     html.H1(title),
                                     html.P(
-                                        "Interactive visualization of xarray dataset linting results"
+                                        "Interactive visualization of xarray dataset "
+                                        "linting results"
                                     ),
                                 ]
                             )
@@ -778,7 +782,8 @@ def create_dashboard(df: pd.DataFrame, title: str = "Xinter Dashboard") -> Dash:
                                         ]
                                     ),
                                     html.P(
-                                        "Select points in the scatter plot above to filter this table",
+                                        "Select points in the scatter plot above to "
+                                        "filter this table",
                                         style={
                                             "fontSize": "0.875rem",
                                             "color": COLORS["text_secondary"],
@@ -819,7 +824,7 @@ def create_dashboard(df: pd.DataFrame, title: str = "Xinter Dashboard") -> Dash:
                         file_pattern, case=False, na=False, regex=True
                     )
                 ]
-            except Exception:
+            except re.error:
                 # If regex is invalid, treat as literal string
                 filtered_df = filtered_df[
                     filtered_df["file_path"].str.contains(
@@ -903,9 +908,13 @@ def create_dashboard(df: pd.DataFrame, title: str = "Xinter Dashboard") -> Dash:
                 paper_bgcolor="white",
                 font_family="Inter",
                 showlegend=False,
-                margin=dict(l=10, r=10, t=10, b=30),
-                xaxis=dict(title="NaN %"),
-                yaxis=dict(showgrid=True, gridcolor=COLORS["border"], title="Count"),
+                margin={"l": 10, "r": 10, "t": 10, "b": 30},
+                xaxis={"title": "NaN %"},
+                yaxis={
+                    "showgrid": True,
+                    "gridcolor": COLORS["border"],
+                    "title": "Count",
+                },
                 height=250,
             )
             return fig
@@ -918,22 +927,25 @@ def create_dashboard(df: pd.DataFrame, title: str = "Xinter Dashboard") -> Dash:
             color_discrete_sequence=[COLORS["primary"]],
         )
 
-        yaxis_config = dict(
-            showgrid=True,
-            gridcolor=COLORS["border"],
-            title="Count",
-            type="log" if log_scale and "log" in log_scale else "linear",
-        )
+        yaxis_config = {
+            "showgrid": True,
+            "gridcolor": COLORS["border"],
+            "title": "Count",
+            "type": "log" if log_scale and "log" in log_scale else "linear",
+        }
 
         fig.update_layout(
             plot_bgcolor="white",
             paper_bgcolor="white",
             font_family="Inter",
             showlegend=False,
-            margin=dict(l=10, r=10, t=10, b=30),
-            xaxis=dict(
-                showgrid=True, gridcolor=COLORS["border"], title="NaN %", range=[0, 1]
-            ),
+            margin={"l": 10, "r": 10, "t": 10, "b": 30},
+            xaxis={
+                "showgrid": True,
+                "gridcolor": COLORS["border"],
+                "title": "NaN %",
+                "range": [0, 1],
+            },
             yaxis=yaxis_config,
             height=250,
         )
@@ -974,9 +986,13 @@ def create_dashboard(df: pd.DataFrame, title: str = "Xinter Dashboard") -> Dash:
                 paper_bgcolor="white",
                 font_family="Inter",
                 showlegend=False,
-                margin=dict(l=10, r=10, t=10, b=30),
-                xaxis=dict(title="Inf %"),
-                yaxis=dict(showgrid=True, gridcolor=COLORS["border"], title="Count"),
+                margin={"l": 10, "r": 10, "t": 10, "b": 30},
+                xaxis={"title": "Inf %"},
+                yaxis={
+                    "showgrid": True,
+                    "gridcolor": COLORS["border"],
+                    "title": "Count",
+                },
                 height=250,
             )
             return fig
@@ -989,22 +1005,25 @@ def create_dashboard(df: pd.DataFrame, title: str = "Xinter Dashboard") -> Dash:
             color_discrete_sequence=[COLORS["accent"]],
         )
 
-        yaxis_config = dict(
-            showgrid=True,
-            gridcolor=COLORS["border"],
-            title="Count",
-            type="log" if log_scale and "log" in log_scale else "linear",
-        )
+        yaxis_config = {
+            "showgrid": True,
+            "gridcolor": COLORS["border"],
+            "title": "Count",
+            "type": "log" if log_scale and "log" in log_scale else "linear",
+        }
 
         fig.update_layout(
             plot_bgcolor="white",
             paper_bgcolor="white",
             font_family="Inter",
             showlegend=False,
-            margin=dict(l=10, r=10, t=10, b=30),
-            xaxis=dict(
-                showgrid=True, gridcolor=COLORS["border"], title="Inf %", range=[0, 1]
-            ),
+            margin={"l": 10, "r": 10, "t": 10, "b": 30},
+            xaxis={
+                "showgrid": True,
+                "gridcolor": COLORS["border"],
+                "title": "Inf %",
+                "range": [0, 1],
+            },
             yaxis=yaxis_config,
             height=250,
         )
@@ -1045,9 +1064,13 @@ def create_dashboard(df: pd.DataFrame, title: str = "Xinter Dashboard") -> Dash:
                 paper_bgcolor="white",
                 font_family="Inter",
                 showlegend=False,
-                margin=dict(l=10, r=10, t=10, b=30),
-                xaxis=dict(title="Zero %"),
-                yaxis=dict(showgrid=True, gridcolor=COLORS["border"], title="Count"),
+                margin={"l": 10, "r": 10, "t": 10, "b": 30},
+                xaxis={"title": "Zero %"},
+                yaxis={
+                    "showgrid": True,
+                    "gridcolor": COLORS["border"],
+                    "title": "Count",
+                },
                 height=250,
             )
             return fig
@@ -1060,22 +1083,25 @@ def create_dashboard(df: pd.DataFrame, title: str = "Xinter Dashboard") -> Dash:
             color_discrete_sequence=[COLORS["secondary"]],
         )
 
-        yaxis_config = dict(
-            showgrid=True,
-            gridcolor=COLORS["border"],
-            title="Count",
-            type="log" if log_scale and "log" in log_scale else "linear",
-        )
+        yaxis_config = {
+            "showgrid": True,
+            "gridcolor": COLORS["border"],
+            "title": "Count",
+            "type": "log" if log_scale and "log" in log_scale else "linear",
+        }
 
         fig.update_layout(
             plot_bgcolor="white",
             paper_bgcolor="white",
             font_family="Inter",
             showlegend=False,
-            margin=dict(l=10, r=10, t=10, b=30),
-            xaxis=dict(
-                showgrid=True, gridcolor=COLORS["border"], title="Zero %", range=[0, 1]
-            ),
+            margin={"l": 10, "r": 10, "t": 10, "b": 30},
+            xaxis={
+                "showgrid": True,
+                "gridcolor": COLORS["border"],
+                "title": "Zero %",
+                "range": [0, 1],
+            },
             yaxis=yaxis_config,
             height=250,
         )
@@ -1118,9 +1144,13 @@ def create_dashboard(df: pd.DataFrame, title: str = "Xinter Dashboard") -> Dash:
                 paper_bgcolor="white",
                 font_family="Inter",
                 showlegend=False,
-                margin=dict(l=10, r=10, t=10, b=30),
-                xaxis=dict(title="Negative %"),
-                yaxis=dict(showgrid=True, gridcolor=COLORS["border"], title="Count"),
+                margin={"l": 10, "r": 10, "t": 10, "b": 30},
+                xaxis={"title": "Negative %"},
+                yaxis={
+                    "showgrid": True,
+                    "gridcolor": COLORS["border"],
+                    "title": "Count",
+                },
                 height=250,
             )
             return fig
@@ -1133,25 +1163,25 @@ def create_dashboard(df: pd.DataFrame, title: str = "Xinter Dashboard") -> Dash:
             color_discrete_sequence=[COLORS["warning"]],
         )
 
-        yaxis_config = dict(
-            showgrid=True,
-            gridcolor=COLORS["border"],
-            title="Count",
-            type="log" if log_scale and "log" in log_scale else "linear",
-        )
+        yaxis_config = {
+            "showgrid": True,
+            "gridcolor": COLORS["border"],
+            "title": "Count",
+            "type": "log" if log_scale and "log" in log_scale else "linear",
+        }
 
         fig.update_layout(
             plot_bgcolor="white",
             paper_bgcolor="white",
             font_family="Inter",
             showlegend=False,
-            margin=dict(l=10, r=10, t=10, b=30),
-            xaxis=dict(
-                showgrid=True,
-                gridcolor=COLORS["border"],
-                title="Negative %",
-                range=[0, 1],
-            ),
+            margin={"l": 10, "r": 10, "t": 10, "b": 30},
+            xaxis={
+                "showgrid": True,
+                "gridcolor": COLORS["border"],
+                "title": "Negative %",
+                "range": [0, 1],
+            },
             yaxis=yaxis_config,
             height=250,
         )
@@ -1186,12 +1216,16 @@ def create_dashboard(df: pd.DataFrame, title: str = "Xinter Dashboard") -> Dash:
             plot_bgcolor="white",
             paper_bgcolor="white",
             font_family="Inter",
-            margin=dict(l=10, r=10, t=10, b=10),
+            margin={"l": 10, "r": 10, "t": 10, "b": 10},
             height=250,
             showlegend=True,
-            legend=dict(
-                orientation="h", yanchor="bottom", y=-0.3, xanchor="center", x=0.5
-            ),
+            legend={
+                "orientation": "h",
+                "yanchor": "bottom",
+                "y": -0.3,
+                "xanchor": "center",
+                "x": 0.5,
+            },
         )
         fig.update_traces(textposition="inside", textinfo="percent+label")
         return fig
@@ -1225,12 +1259,16 @@ def create_dashboard(df: pd.DataFrame, title: str = "Xinter Dashboard") -> Dash:
             plot_bgcolor="white",
             paper_bgcolor="white",
             font_family="Inter",
-            margin=dict(l=10, r=10, t=10, b=10),
+            margin={"l": 10, "r": 10, "t": 10, "b": 10},
             height=250,
             showlegend=True,
-            legend=dict(
-                orientation="h", yanchor="bottom", y=-0.2, xanchor="center", x=0.5
-            ),
+            legend={
+                "orientation": "h",
+                "yanchor": "bottom",
+                "y": -0.2,
+                "xanchor": "center",
+                "x": 0.5,
+            },
         )
         fig.update_traces(textposition="inside", textinfo="percent+label")
         return fig
@@ -1259,7 +1297,7 @@ def create_dashboard(df: pd.DataFrame, title: str = "Xinter Dashboard") -> Dash:
             plot_bgcolor="white",
             paper_bgcolor="white",
             font_family="Inter",
-            margin=dict(l=10, r=10, t=10, b=30),
+            margin={"l": 10, "r": 10, "t": 10, "b": 30},
             showlegend=True,
             height=250,
         )
@@ -1357,7 +1395,7 @@ def create_dashboard(df: pd.DataFrame, title: str = "Xinter Dashboard") -> Dash:
             plot_bgcolor="white",
             paper_bgcolor="white",
             font_family="Inter",
-            margin=dict(l=0, r=0, t=40, b=20),
+            margin={"l": 0, "r": 0, "t": 40, "b": 20},
             height=400,
             title_text="",
             title_x=0.5,
@@ -1440,9 +1478,9 @@ def create_dashboard(df: pd.DataFrame, title: str = "Xinter Dashboard") -> Dash:
             plot_bgcolor="white",
             paper_bgcolor="white",
             font_family="Inter",
-            margin=dict(l=0, r=0, t=0, b=0),
-            xaxis=dict(showgrid=True, gridcolor=COLORS["border"], zeroline=True),
-            yaxis=dict(showgrid=True, gridcolor=COLORS["border"], zeroline=True),
+            margin={"l": 0, "r": 0, "t": 0, "b": 0},
+            xaxis={"showgrid": True, "gridcolor": COLORS["border"], "zeroline": True},
+            yaxis={"showgrid": True, "gridcolor": COLORS["border"], "zeroline": True},
             height=500,
             dragmode="select",  # Enable box/lasso select by default
         )
@@ -1598,19 +1636,17 @@ def create_dashboard(df: pd.DataFrame, title: str = "Xinter Dashboard") -> Dash:
             return None
 
         # Reconstruct dataframe from stored JSON
-        import io
-
         export_df = pd.read_json(stored_data, orient="split")
 
         if export_format == "csv":
             return dcc.send_data_frame(
                 export_df.to_csv, "linting_data.csv", index=False
             )
-        elif export_format == "excel":
+        if export_format == "excel":
             return dcc.send_data_frame(
                 export_df.to_excel, "linting_data.xlsx", index=False
             )
-        elif export_format == "parquet":
+        if export_format == "parquet":
             # For parquet, we need to use a buffer
             buffer = io.BytesIO()
             export_df.to_parquet(buffer, index=False)
@@ -1626,7 +1662,7 @@ def launch_dashboard(
     parquet_file: str,
     title: Optional[str] = None,
     host: str = "127.0.0.1",
-    port: int = 8050,
+    server_port: int = 8050,
     debug: bool = False,
 ):
     """Launch the dashboard for a given parquet file.
@@ -1635,7 +1671,7 @@ def launch_dashboard(
         parquet_file: Path to the parquet file containing linting results
         title: Optional custom title for the dashboard
         host: Host to run the server on
-        port: Port to run the server on
+        server_port: Port to run the server on
         debug: Enable debug mode
     """
     # Load data
@@ -1646,28 +1682,24 @@ def launch_dashboard(
 
     # Create title from filename if not provided
     if title is None:
-        filename = Path(parquet_file).stem
         title = "Xinter Dashboard"
 
     # Create and run app
     app = create_dashboard(df, title)
 
     print(f"\n{'=' * 60}")
-    print(f"  XR-Linter Dashboard")
+    print("  XR-Linter Dashboard")
     print(f"{'=' * 60}")
     print(f"  📊 Loaded: {len(df):,} variables")
-    print(f"  🌐 Running at: http://{host}:{port}")
-    print(f"  💡 Press Ctrl+C to stop")
+    print(f"  🌐 Running at: http://{host}:{server_port}")
+    print("  💡 Press Ctrl+C to stop")
     print(f"{'=' * 60}\n")
 
-    app.run(host=host, port=port, debug=debug)
+    app.run(host=host, port=server_port, debug=debug)
 
 
 def main():
     """Main entry point for the CLI."""
-    import sys
-    import argparse
-
     parser = argparse.ArgumentParser(
         description="Launch XR-Linter Dashboard for visualizing linting results"
     )
@@ -1694,7 +1726,7 @@ def main():
         parquet_file=args.parquet_file,
         title=args.title,
         host=args.host,
-        port=args.port,
+        server_port=args.port,
         debug=args.debug,
     )
 
@@ -1714,4 +1746,4 @@ if __name__ == "__main__":
         if port_idx + 1 < len(sys.argv):
             port = int(sys.argv[port_idx + 1])
 
-    launch_dashboard(file_path, port=port, debug=True)
+    launch_dashboard(file_path, server_port=port, debug=True)

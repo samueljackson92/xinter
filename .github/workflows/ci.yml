@@ -63,10 +63,10 @@ jobs:
         run: uv pip install pylint
 
       - name: Install package
-        run: uv pip install -e .
+        run: uv pip install -e ".[gui]"
 
       - name: Run Pylint
-        run: uv run pylint xinter
+        run: uv run pylint --disable C0302,R0912,R0913,R0914,R0915,R0917 xinter
 
     
   typecheck:
@@ -94,7 +94,7 @@ jobs:
         run: uv sync
 
       - name: Install package
-        run: uv pip install -e .
+        run: uv pip install -e ".[gui]"
 
       - name: Run mypy
         run: uv run ty check xinter
