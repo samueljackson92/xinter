@@ -210,15 +210,6 @@ ruff format .
 ruff check .
 ```
 
-## Requirements
-
-- Python >= 3.11
-- xarray >= 2024.7.0
-- pandas >= 2.3.3
-- pint-xarray >= 0.6.0
-- pydantic >= 2.12.5
-- rich >= 14.2.0
-
 ## License
 
 MIT License - see LICENSE file for details.
