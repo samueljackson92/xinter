@@ -10,9 +10,20 @@ from pathlib import Path
 from functools import partial
 
 import pandas as pd
-from loguru import logger
+from rich.console import Console
+from rich.progress import (
+    Progress,
+    SpinnerColumn,
+    TextColumn,
+    BarColumn,
+    MofNCompleteColumn,
+    TimeElapsedColumn,
+)
+from rich.table import Table
 
 from xinter.core import lint_dataset_with_error_handling
+
+console = Console()
 
 WORKER_TIMEOUT = int(
     os.environ.get("XINTER_WORKER_TIMEOUT", 60 * 5)
@@ -21,19 +32,67 @@ WORKER_TIMEOUT = int(
 
 def gather_results(futures):
     """Gather results from parallel linting and print summary to console."""
-    for file_path, future in futures:
-        try:
-            _, error = future.get(
-                timeout=WORKER_TIMEOUT
-            )  # Wait up to WORKER_TIMEOUT seconds for each file to be linted
-        except mp.TimeoutError:
-            logger.error(f"Timeout linting {file_path}")
-            continue
+    success_count = 0
+    error_count = 0
+    timeout_count = 0
 
-        if error is not None:
-            logger.error(f"Error linting {file_path}: {error}")
-        else:
-            logger.info(f"Successfully linted {file_path}")
+    with Progress(
+        SpinnerColumn(),
+        TextColumn("[bold blue]{task.description}"),
+        BarColumn(),
+        MofNCompleteColumn(),
+        TimeElapsedColumn(),
+        console=console,
+    ) as progress:
+        task = progress.add_task("Linting files", total=len(futures))
+
+        for file_path, future in futures:
+            try:
+                _, error = future.get(
+                    timeout=WORKER_TIMEOUT
+                )  # Wait up to WORKER_TIMEOUT seconds for each file to be linted
+            except mp.TimeoutError:
+                console.print(f"[yellow]⌛ Timeout linting {file_path}[/yellow]")
+                timeout_count += 1
+                progress.advance(task)
+                continue
+
+            if error is not None:
+                console.print(f"[red]❌ Error linting {file_path}:[/red] {error}")
+                error_count += 1
+            else:
+                console.print(f"[green]✅ Successfully linted {file_path}[/green]")
+                success_count += 1
+
+            progress.advance(task)
+
+    # Create summary table
+    table = Table(title="Linting Summary", show_header=False, box=None, padding=(0, 1))
+    table.add_column(justify="left", no_wrap=True)  # Emoji column
+    table.add_column(justify="left", no_wrap=True)  # Label column
+    table.add_column(justify="right", no_wrap=True)  # Number column
+    table.add_row(
+        "[green]✅[/green]",
+        "[green]Successful[/green]",
+        f"[bold]{success_count:>6}[/bold]",
+    )
+    table.add_row(
+        "[red]❌[/red]", "[red]Errors[/red]", f"[bold]{error_count:>6}[/bold]"
+    )
+    table.add_row(
+        "[yellow]⌛[/yellow]",
+        "[yellow]Timeouts[/yellow]",
+        f"[bold]{timeout_count:>6}[/bold]",
+    )
+    table.add_row(
+        "[blue]📊[/blue]", "[blue]Total[/blue]", f"[bold]{len(futures):>6}[/bold]"
+    )
+
+    console.print()
+    console.print(table)
+    console.print()
+
+    return success_count, error_count, timeout_count
 
 
 def main():
@@ -91,22 +150,42 @@ def main():
         channel_wise=args.channel_wise,
         output_dir=tmp_dir,
     )
+    console.print()
+    console.print("[bold cyan]🔍 Starting XR Linter[/bold cyan]")
+    console.print(f"[dim]Files to process: {len(args.files)}[/dim]")
+    console.print(f"[dim]Workers: {args.num_jobs if args.num_jobs else 'auto'}[/dim]")
+    console.print()
+
     with mp.Pool(processes=args.num_jobs, maxtasksperchild=1) as pool:
         futures = [
             (item, pool.apply_async(linting_func, (item,))) for item in args.files
         ]
-        gather_results(futures)
+        success_count, error_count, timeout_count = gather_results(futures)
 
-    logger.info("Linting completed.")
+    if error_count > 0 or timeout_count > 0:
+        console.print(
+            f"[yellow]⚠️  Linting completed with {error_count} errors and {timeout_count} timeouts.[/yellow]"
+        )
+    else:
+        console.print(
+            f"[green bold]✅ Linting completed successfully! {success_count} files processed.[/green bold]"
+        )
 
+    parquet_files = list(Path(tmp_dir).glob("*.parquet"))
+
+    if not parquet_files:
+        console.print(
+            "[yellow]⚠️  No files were successfully linted. No report generated.[/yellow]"
+        )
+        sys.exit(1)
+
+    console.print(
+        f"[cyan]📦 Combining results from {len(parquet_files)} files...[/cyan]"
+    )
     dfs = pd.concat(
-        [pd.read_parquet(file) for file in Path(tmp_dir).glob("*.parquet")],
+        [pd.read_parquet(file) for file in parquet_files],
         ignore_index=True,
     )
-
-    if dfs.empty:
-        logger.warning("No files were successfully linted. No report generated.")
-        sys.exit(0)
 
     dfs = dfs.sort_values(
         by=["file_path", "group", "target_type", "variable_name", "checker_name"]
@@ -140,10 +219,17 @@ def main():
     elif output_file.suffix == ".csv":
         dfs.to_csv(output_file)
     else:
-        logger.error("Unsupported output format. Please use .parquet or .csv.")
+        console.print(
+            "[red]❌ Error: Unsupported output format. Please use .parquet or .csv.[/red]"
+        )
         sys.exit(1)
     shutil.rmtree(tmp_dir)  # Clean up individual parquet files
-    logger.info(f"Combined linting report saved to {output_file}")
+
+    console.print()
+    console.print(f"[green]💾 Report saved to:[/green] [bold]{output_file}[/bold]")
+    console.print(f"[dim]   Format: {output_file.suffix}[/dim]")
+    console.print(f"[dim]   Rows: {len(dfs):,}[/dim]")
+    console.print()
 
 
 if __name__ == "__main__":
