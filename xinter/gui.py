@@ -9,7 +9,7 @@ import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
-from dash import Dash, html, dcc, Output, Input, dash_table
+from dash import Dash, html, dcc, Output, Input, State, dash_table
 import dash_bootstrap_components as dbc
 from pathlib import Path
 from typing import Optional
@@ -35,7 +35,7 @@ def load_parquet_file(file_path: str) -> pd.DataFrame:
     return pd.read_parquet(file_path)
 
 
-def create_dashboard(df: pd.DataFrame, title: str = "XR-Linter Dashboard") -> Dash:
+def create_dashboard(df: pd.DataFrame, title: str = "Xinter Dashboard") -> Dash:
     """Create the Dash application with the data dashboard.
 
     Args:
@@ -162,24 +162,16 @@ def create_dashboard(df: pd.DataFrame, title: str = "XR-Linter Dashboard") -> Da
     </html>
     """
 
-    # Calculate summary statistics
-    total_variables = len(df)
-    unique_variable_names = (
-        df["variable_name"].nunique() if "variable_name" in df.columns else 0
-    )
-
-    # Handle file_path from either column or index
-    unique_files = df["file_path"].nunique()
-
-    # Count unique (file_path, group) combinations from index or columns
-    unique_groups = df["group"].nunique()
-
     # Get list of numeric columns for scatter plot axes
     numeric_cols = df.select_dtypes(include=["number"]).columns.tolist()
     # Get all columns for color options
     all_cols = df.columns.tolist()
-    # Get list of unique variable names for stats dropdown
-    variable_names = sorted(df["variable_name"].unique().tolist()) if "variable_name" in df.columns else []
+    # Get list of unique variable names for dropdown
+    variable_names = (
+        sorted(df["variable_name"].unique().tolist())
+        if "variable_name" in df.columns
+        else []
+    )
 
     # Layout
     app.layout = dbc.Container(
@@ -202,73 +194,6 @@ def create_dashboard(df: pd.DataFrame, title: str = "XR-Linter Dashboard") -> Da
                 ],
                 className="header",
             ),
-            # Summary Metrics
-            dbc.Row(
-                [
-                    dbc.Col(
-                        [
-                            html.Div(
-                                [
-                                    html.Div(
-                                        f"{total_variables:,}", className="metric-value"
-                                    ),
-                                    html.Div(
-                                        "Total Datasets", className="metric-label"
-                                    ),
-                                ],
-                                className="metric-card",
-                            )
-                        ],
-                        width=3,
-                    ),
-                    dbc.Col(
-                        [
-                            html.Div(
-                                [
-                                    html.Div(
-                                        f"{unique_variable_names:,}",
-                                        className="metric-value",
-                                    ),
-                                    html.Div(
-                                        "Total Variables", className="metric-label"
-                                    ),
-                                ],
-                                className="metric-card",
-                            )
-                        ],
-                        width=3,
-                    ),
-                    dbc.Col(
-                        [
-                            html.Div(
-                                [
-                                    html.Div(
-                                        f"{unique_files:,}", className="metric-value"
-                                    ),
-                                    html.Div("No. Files", className="metric-label"),
-                                ],
-                                className="metric-card",
-                            )
-                        ],
-                        width=3,
-                    ),
-                    dbc.Col(
-                        [
-                            html.Div(
-                                [
-                                    html.Div(
-                                        f"{unique_groups:,}", className="metric-value"
-                                    ),
-                                    html.Div("Groups", className="metric-label"),
-                                ],
-                                className="metric-card",
-                            )
-                        ],
-                        width=3,
-                    ),
-                ],
-                className="mb-4",
-            ),
             # Filters
             dbc.Row(
                 [
@@ -277,30 +202,29 @@ def create_dashboard(df: pd.DataFrame, title: str = "XR-Linter Dashboard") -> Da
                             html.Div(
                                 [
                                     html.Label(
-                                        "Filter by File",
+                                        "Filter by File (Regex)",
                                         style={
                                             "fontWeight": "600",
                                             "marginBottom": "8px",
                                         },
                                     ),
-                                    dcc.Dropdown(
+                                    dcc.Input(
                                         id="file-filter",
-                                        options=[{"label": "All Files", "value": "all"}]
-                                        + [
-                                            {"label": f, "value": f}
-                                            for f in df["file_path"].unique()
-                                        ]
-                                        if "file_path" in df.columns
-                                        else [],
-                                        value="all",
-                                        clearable=False,
-                                        style={"borderRadius": "8px"},
+                                        type="text",
+                                        placeholder="Type regex pattern to filter files...",
+                                        value="",
+                                        style={
+                                            "width": "100%",
+                                            "borderRadius": "8px",
+                                            "border": "1px solid #ced4da",
+                                            "padding": "8px 12px",
+                                        },
                                     ),
                                 ],
                                 className="chart-container",
                             )
                         ],
-                        width=4,
+                        width=3,
                     ),
                     dbc.Col(
                         [
@@ -333,7 +257,7 @@ def create_dashboard(df: pd.DataFrame, title: str = "XR-Linter Dashboard") -> Da
                                 className="chart-container",
                             )
                         ],
-                        width=4,
+                        width=3,
                     ),
                     dbc.Col(
                         [
@@ -346,23 +270,123 @@ def create_dashboard(df: pd.DataFrame, title: str = "XR-Linter Dashboard") -> Da
                                             "marginBottom": "8px",
                                         },
                                     ),
-                                    dcc.Input(
+                                    dcc.Dropdown(
                                         id="variable-filter",
-                                        type="text",
-                                        placeholder="Type to filter variables...",
-                                        value="",
-                                        style={
-                                            "width": "100%",
-                                            "borderRadius": "8px",
-                                            "border": "1px solid #ced4da",
-                                            "padding": "8px 12px",
-                                        },
+                                        options=[
+                                            {"label": "All Variables", "value": "all"}
+                                        ]
+                                        + [
+                                            {"label": v, "value": v}
+                                            for v in variable_names
+                                        ],
+                                        value="all",
+                                        clearable=False,
+                                        style={"borderRadius": "8px"},
                                     ),
                                 ],
                                 className="chart-container",
                             )
                         ],
-                        width=4,
+                        width=3,
+                    ),
+                    dbc.Col(
+                        [
+                            html.Div(
+                                [
+                                    html.Label(
+                                        "Filter by Target Type",
+                                        style={
+                                            "fontWeight": "600",
+                                            "marginBottom": "8px",
+                                        },
+                                    ),
+                                    dcc.Dropdown(
+                                        id="target-type-filter",
+                                        options=[{"label": "All Types", "value": "all"}]
+                                        + [
+                                            {"label": t, "value": t}
+                                            for t in sorted(df["target_type"].unique())
+                                            if pd.notna(t)
+                                        ]
+                                        if "target_type" in df.columns
+                                        else [],
+                                        value="all",
+                                        clearable=False,
+                                        style={"borderRadius": "8px"},
+                                    ),
+                                ],
+                                className="chart-container",
+                            )
+                        ],
+                        width=3,
+                    ),
+                ],
+                className="mb-4",
+            ),
+            # Summary Metrics
+            dbc.Row(
+                [
+                    dbc.Col(
+                        [
+                            html.Div(
+                                [
+                                    html.Div(
+                                        id="metric-total-datasets",
+                                        className="metric-value",
+                                    ),
+                                    html.Div(
+                                        "Total Datasets", className="metric-label"
+                                    ),
+                                ],
+                                className="metric-card",
+                            )
+                        ],
+                        width=3,
+                    ),
+                    dbc.Col(
+                        [
+                            html.Div(
+                                [
+                                    html.Div(
+                                        id="metric-files", className="metric-value"
+                                    ),
+                                    html.Div("No. Files", className="metric-label"),
+                                ],
+                                className="metric-card",
+                            )
+                        ],
+                        width=3,
+                    ),
+                    dbc.Col(
+                        [
+                            html.Div(
+                                [
+                                    html.Div(
+                                        id="metric-variables",
+                                        className="metric-value",
+                                    ),
+                                    html.Div(
+                                        "Total Variables", className="metric-label"
+                                    ),
+                                ],
+                                className="metric-card",
+                            )
+                        ],
+                        width=3,
+                    ),
+                    dbc.Col(
+                        [
+                            html.Div(
+                                [
+                                    html.Div(
+                                        id="metric-groups", className="metric-value"
+                                    ),
+                                    html.Div("Groups", className="metric-label"),
+                                ],
+                                className="metric-card",
+                            )
+                        ],
+                        width=3,
                     ),
                 ],
                 className="mb-4",
@@ -523,61 +547,7 @@ def create_dashboard(df: pd.DataFrame, title: str = "XR-Linter Dashboard") -> Da
                     ),
                 ]
             ),
-            # Charts Row 2
-            dbc.Row(
-                [
-                    dbc.Col(
-                        [
-                            html.Div(
-                                [
-                                    dbc.Row(
-                                        [
-                                            dbc.Col(
-                                                [
-                                                    html.H5(
-                                                        "Statistical Distribution",
-                                                        style={
-                                                            "marginBottom": "20px",
-                                                            "color": COLORS["primary"],
-                                                        },
-                                                    ),
-                                                ],
-                                                width=6,
-                                            ),
-                                            dbc.Col(
-                                                [
-                                                    html.Label(
-                                                        "Variable Name",
-                                                        style={
-                                                            "fontWeight": "600",
-                                                            "marginBottom": "8px",
-                                                        },
-                                                    ),
-                                                    dcc.Dropdown(
-                                                        id="stats-variable",
-                                                        options=[
-                                                            {"label": v, "value": v}
-                                                            for v in variable_names
-                                                        ],
-                                                        value=variable_names[0] if variable_names else None,
-                                                        clearable=False,
-                                                        style={"marginBottom": "10px"},
-                                                    ),
-                                                ],
-                                                width=6,
-                                            ),
-                                        ]
-                                    ),
-                                    dcc.Graph(id="stats-overview"),
-                                ],
-                                className="chart-container",
-                            )
-                        ],
-                        width=12,
-                    ),
-                ]
-            ),
-            # Charts Row 3 - Scatter Plot Explorer
+            # Charts Row 2 - Scatter Plot Explorer
             dbc.Row(
                 [
                     dbc.Col(
@@ -593,31 +563,6 @@ def create_dashboard(df: pd.DataFrame, title: str = "XR-Linter Dashboard") -> Da
                                     ),
                                     dbc.Row(
                                         [
-                                            dbc.Col(
-                                                [
-                                                    html.Label(
-                                                        "Variable Name",
-                                                        style={
-                                                            "fontWeight": "600",
-                                                            "marginBottom": "8px",
-                                                        },
-                                                    ),
-                                                    dcc.Dropdown(
-                                                        id="scatter-variable",
-                                                        options=[
-                                                            {"label": "All", "value": "all"}
-                                                        ]
-                                                        + [
-                                                            {"label": v, "value": v}
-                                                            for v in variable_names
-                                                        ],
-                                                        value="all",
-                                                        clearable=False,
-                                                        style={"marginBottom": "10px"},
-                                                    ),
-                                                ],
-                                                width=3,
-                                            ),
                                             dbc.Col(
                                                 [
                                                     html.Label(
@@ -644,7 +589,7 @@ def create_dashboard(df: pd.DataFrame, title: str = "XR-Linter Dashboard") -> Da
                                                         style={"marginBottom": "10px"},
                                                     ),
                                                 ],
-                                                width=3,
+                                                width=4,
                                             ),
                                             dbc.Col(
                                                 [
@@ -674,7 +619,7 @@ def create_dashboard(df: pd.DataFrame, title: str = "XR-Linter Dashboard") -> Da
                                                         style={"marginBottom": "10px"},
                                                     ),
                                                 ],
-                                                width=3,
+                                                width=4,
                                             ),
                                             dbc.Col(
                                                 [
@@ -708,7 +653,48 @@ def create_dashboard(df: pd.DataFrame, title: str = "XR-Linter Dashboard") -> Da
                                             ),
                                         ]
                                     ),
-                                    dcc.Graph(id="scatter-plot"),
+                                    dcc.Graph(
+                                        id="scatter-plot",
+                                        config={
+                                            "modeBarButtonsToAdd": [
+                                                "select2d",
+                                                "lasso2d",
+                                            ],
+                                            "displayModeBar": True,
+                                        },
+                                    ),
+                                ],
+                                className="chart-container",
+                            )
+                        ],
+                        width=12,
+                    ),
+                ]
+            ),
+            # Charts Row 3 - Statistical Distribution
+            dbc.Row(
+                [
+                    dbc.Col(
+                        [
+                            html.Div(
+                                [
+                                    dbc.Row(
+                                        [
+                                            dbc.Col(
+                                                [
+                                                    html.H5(
+                                                        "Statistical Distribution",
+                                                        style={
+                                                            "marginBottom": "20px",
+                                                            "color": COLORS["primary"],
+                                                        },
+                                                    ),
+                                                ],
+                                                width=12,
+                                            ),
+                                        ]
+                                    ),
+                                    dcc.Graph(id="stats-overview"),
                                 ],
                                 className="chart-container",
                             )
@@ -724,13 +710,84 @@ def create_dashboard(df: pd.DataFrame, title: str = "XR-Linter Dashboard") -> Da
                         [
                             html.Div(
                                 [
-                                    html.H5(
-                                        "Detailed Data View",
+                                    dbc.Row(
+                                        [
+                                            dbc.Col(
+                                                [
+                                                    html.H5(
+                                                        "Detailed Data View",
+                                                        style={
+                                                            "marginBottom": "10px",
+                                                            "color": COLORS["primary"],
+                                                        },
+                                                    ),
+                                                ],
+                                                width=6,
+                                            ),
+                                            dbc.Col(
+                                                [
+                                                    dbc.Row(
+                                                        [
+                                                            dbc.Col(
+                                                                [
+                                                                    dcc.Dropdown(
+                                                                        id="export-format",
+                                                                        options=[
+                                                                            {
+                                                                                "label": "CSV",
+                                                                                "value": "csv",
+                                                                            },
+                                                                            {
+                                                                                "label": "Excel",
+                                                                                "value": "excel",
+                                                                            },
+                                                                            {
+                                                                                "label": "Parquet",
+                                                                                "value": "parquet",
+                                                                            },
+                                                                        ],
+                                                                        value="csv",
+                                                                        clearable=False,
+                                                                        style={
+                                                                            "marginBottom": "0px"
+                                                                        },
+                                                                    ),
+                                                                ],
+                                                                width=6,
+                                                            ),
+                                                            dbc.Col(
+                                                                [
+                                                                    dbc.Button(
+                                                                        "Export Data",
+                                                                        id="export-button",
+                                                                        color="primary",
+                                                                        size="sm",
+                                                                        style={
+                                                                            "width": "100%"
+                                                                        },
+                                                                    ),
+                                                                ],
+                                                                width=6,
+                                                            ),
+                                                        ],
+                                                        style={"marginBottom": "0px"},
+                                                    ),
+                                                ],
+                                                width=6,
+                                            ),
+                                        ]
+                                    ),
+                                    html.P(
+                                        "Select points in the scatter plot above to filter this table",
                                         style={
-                                            "marginBottom": "20px",
-                                            "color": COLORS["primary"],
+                                            "fontSize": "0.875rem",
+                                            "color": COLORS["text_secondary"],
+                                            "marginBottom": "15px",
+                                            "fontStyle": "italic",
                                         },
                                     ),
+                                    dcc.Store(id="table-data-store"),
+                                    dcc.Download(id="download-data"),
                                     html.Div(
                                         id="data-table", className="table-container"
                                     ),
@@ -748,35 +805,79 @@ def create_dashboard(df: pd.DataFrame, title: str = "XR-Linter Dashboard") -> Da
     )
 
     # Helper function to apply filters
-    def get_filtered_df(file_val, group_val, variable_val=""):
+    def get_filtered_df(file_val, group_val, variable_val="all", target_type_val="all"):
         """Apply filters to the dataframe based on filter values."""
         filtered_df = df.copy()
 
-        if file_val != "all" and "file_path" in df.columns:
-            filtered_df = filtered_df[filtered_df["file_path"] == file_val]
+        # File filter now uses regex search
+        # Handle None, empty string, and whitespace-only strings
+        if file_val is not None and str(file_val).strip() and "file_path" in df.columns:
+            file_pattern = str(file_val).strip()
+            try:
+                filtered_df = filtered_df[
+                    filtered_df["file_path"].str.contains(
+                        file_pattern, case=False, na=False, regex=True
+                    )
+                ]
+            except Exception:
+                # If regex is invalid, treat as literal string
+                filtered_df = filtered_df[
+                    filtered_df["file_path"].str.contains(
+                        file_pattern, case=False, na=False, regex=False
+                    )
+                ]
 
         if group_val != "all" and "group" in df.columns:
             filtered_df = filtered_df[filtered_df["group"] == group_val]
 
-        if variable_val and "variable_name" in df.columns:
-            filtered_df = filtered_df[
-                filtered_df["variable_name"].str.contains(
-                    variable_val, case=False, na=False
-                )
-            ]
+        # Variable filter now uses exact match from dropdown
+        if variable_val != "all" and "variable_name" in df.columns:
+            filtered_df = filtered_df[filtered_df["variable_name"] == variable_val]
+
+        # Target type filter
+        if target_type_val != "all" and "target_type" in df.columns:
+            filtered_df = filtered_df[filtered_df["target_type"] == target_type_val]
 
         return filtered_df
 
     # Callbacks - all now take filter values directly instead of serialized data
     @app.callback(
+        Output("metric-total-datasets", "children"),
+        Output("metric-files", "children"),
+        Output("metric-variables", "children"),
+        Output("metric-groups", "children"),
+        Input("file-filter", "value"),
+        Input("group-filter", "value"),
+        Input("variable-filter", "value"),
+        Input("target-type-filter", "value"),
+    )
+    def update_metrics(file_val, group_val, variable_val, target_type_val):
+        dff = get_filtered_df(file_val, group_val, variable_val, target_type_val)
+
+        total_datasets = len(dff)
+        unique_files = dff["file_path"].nunique() if "file_path" in dff.columns else 0
+        unique_variables = (
+            dff["variable_name"].nunique() if "variable_name" in dff.columns else 0
+        )
+        unique_groups = dff["group"].nunique() if "group" in dff.columns else 0
+
+        return (
+            f"{total_datasets:,}",
+            f"{unique_files:,}",
+            f"{unique_variables:,}",
+            f"{unique_groups:,}",
+        )
+
+    @app.callback(
         Output("nan-distribution", "figure"),
         Input("file-filter", "value"),
         Input("group-filter", "value"),
         Input("variable-filter", "value"),
+        Input("target-type-filter", "value"),
         Input("log-scale-toggle", "value"),
     )
-    def update_nan_dist(file_val, group_val, variable_val, log_scale):
-        dff = get_filtered_df(file_val, group_val, variable_val)
+    def update_nan_dist(file_val, group_val, variable_val, target_type_val, log_scale):
+        dff = get_filtered_df(file_val, group_val, variable_val, target_type_val)
 
         if "nan_percent" not in dff.columns or len(dff) == 0:
             return go.Figure()
@@ -815,10 +916,11 @@ def create_dashboard(df: pd.DataFrame, title: str = "XR-Linter Dashboard") -> Da
         Input("file-filter", "value"),
         Input("group-filter", "value"),
         Input("variable-filter", "value"),
+        Input("target-type-filter", "value"),
         Input("log-scale-toggle", "value"),
     )
-    def update_inf_dist(file_val, group_val, variable_val, log_scale):
-        dff = get_filtered_df(file_val, group_val, variable_val)
+    def update_inf_dist(file_val, group_val, variable_val, target_type_val, log_scale):
+        dff = get_filtered_df(file_val, group_val, variable_val, target_type_val)
 
         if "infinite_percent" not in dff.columns or len(dff) == 0:
             return go.Figure()
@@ -857,10 +959,11 @@ def create_dashboard(df: pd.DataFrame, title: str = "XR-Linter Dashboard") -> Da
         Input("file-filter", "value"),
         Input("group-filter", "value"),
         Input("variable-filter", "value"),
+        Input("target-type-filter", "value"),
         Input("log-scale-toggle", "value"),
     )
-    def update_zero_dist(file_val, group_val, variable_val, log_scale):
-        dff = get_filtered_df(file_val, group_val, variable_val)
+    def update_zero_dist(file_val, group_val, variable_val, target_type_val, log_scale):
+        dff = get_filtered_df(file_val, group_val, variable_val, target_type_val)
 
         if "zero_percent" not in dff.columns or len(dff) == 0:
             return go.Figure()
@@ -899,10 +1002,13 @@ def create_dashboard(df: pd.DataFrame, title: str = "XR-Linter Dashboard") -> Da
         Input("file-filter", "value"),
         Input("group-filter", "value"),
         Input("variable-filter", "value"),
+        Input("target-type-filter", "value"),
         Input("log-scale-toggle", "value"),
     )
-    def update_negative_dist(file_val, group_val, variable_val, log_scale):
-        dff = get_filtered_df(file_val, group_val, variable_val)
+    def update_negative_dist(
+        file_val, group_val, variable_val, target_type_val, log_scale
+    ):
+        dff = get_filtered_df(file_val, group_val, variable_val, target_type_val)
 
         if "negative_percent" not in dff.columns or len(dff) == 0:
             return go.Figure()
@@ -944,9 +1050,10 @@ def create_dashboard(df: pd.DataFrame, title: str = "XR-Linter Dashboard") -> Da
         Input("file-filter", "value"),
         Input("group-filter", "value"),
         Input("variable-filter", "value"),
+        Input("target-type-filter", "value"),
     )
-    def update_units_pie(file_val, group_val, variable_val):
-        dff = get_filtered_df(file_val, group_val, variable_val)
+    def update_units_pie(file_val, group_val, variable_val, target_type_val):
+        dff = get_filtered_df(file_val, group_val, variable_val, target_type_val)
 
         if "units" not in dff.columns or len(dff) == 0:
             return go.Figure()
@@ -982,9 +1089,10 @@ def create_dashboard(df: pd.DataFrame, title: str = "XR-Linter Dashboard") -> Da
         Input("file-filter", "value"),
         Input("group-filter", "value"),
         Input("variable-filter", "value"),
+        Input("target-type-filter", "value"),
     )
-    def update_units_parsable_pie(file_val, group_val, variable_val):
-        dff = get_filtered_df(file_val, group_val, variable_val)
+    def update_units_parsable_pie(file_val, group_val, variable_val, target_type_val):
+        dff = get_filtered_df(file_val, group_val, variable_val, target_type_val)
 
         if "units_parsable" not in dff.columns or len(dff) == 0:
             return go.Figure()
@@ -1050,18 +1158,11 @@ def create_dashboard(df: pd.DataFrame, title: str = "XR-Linter Dashboard") -> Da
         Input("file-filter", "value"),
         Input("group-filter", "value"),
         Input("variable-filter", "value"),
-        Input("stats-variable", "value"),
+        Input("target-type-filter", "value"),
     )
-    def update_stats(file_val, group_val, variable_val, selected_variable):
-        dff = get_filtered_df(file_val, group_val, variable_val)
+    def update_stats(file_val, group_val, variable_val, target_type_val):
+        dff = get_filtered_df(file_val, group_val, variable_val, target_type_val)
 
-        if len(dff) == 0 or not selected_variable:
-            return go.Figure()
-
-        # Filter to selected variable_name
-        if "variable_name" in dff.columns:
-            dff = dff[dff["variable_name"] == selected_variable]
-        
         if len(dff) == 0:
             return go.Figure()
 
@@ -1075,7 +1176,16 @@ def create_dashboard(df: pd.DataFrame, title: str = "XR-Linter Dashboard") -> Da
             return go.Figure()
 
         # Define all metrics to show
-        all_metrics = ["mean", "std", "min", "max", "range", "skewness", "kurtosis", "entropy"]
+        all_metrics = [
+            "mean",
+            "std",
+            "min",
+            "max",
+            "range",
+            "skewness",
+            "kurtosis",
+            "entropy",
+        ]
         available_metrics = [m for m in all_metrics if m in dff.columns]
 
         if not available_metrics:
@@ -1120,27 +1230,25 @@ def create_dashboard(df: pd.DataFrame, title: str = "XR-Linter Dashboard") -> Da
             font_family="Inter",
             margin=dict(l=0, r=0, t=40, b=20),
             height=400,
-            title_text=f"Statistics for {selected_variable}",
+            title_text="Statistical Distribution by Group",
             title_x=0.5,
         )
         return fig
 
     @app.callback(
         Output("scatter-plot", "figure"),
-        Input("scatter-variable", "value"),
         Input("scatter-x", "value"),
         Input("scatter-y", "value"),
         Input("scatter-color", "value"),
         Input("file-filter", "value"),
         Input("group-filter", "value"),
         Input("variable-filter", "value"),
+        Input("target-type-filter", "value"),
     )
-    def update_scatter(scatter_var, x_col, y_col, color_col, file_val, group_val, variable_val):
-        dff = get_filtered_df(file_val, group_val, variable_val)
-        
-        # Apply variable name filter from scatter plot dropdown
-        if scatter_var and scatter_var != "all" and "variable_name" in dff.columns:
-            dff = dff[dff["variable_name"] == scatter_var]
+    def update_scatter(
+        x_col, y_col, color_col, file_val, group_val, variable_val, target_type_val
+    ):
+        dff = get_filtered_df(file_val, group_val, variable_val, target_type_val)
 
         if not x_col or not y_col or len(dff) == 0:
             return go.Figure()
@@ -1197,6 +1305,7 @@ def create_dashboard(df: pd.DataFrame, title: str = "XR-Linter Dashboard") -> Da
             labels={"x": x_label, "y": y_label},
             color_continuous_scale=color_continuous_scale,
             color_discrete_map=color_discrete_map,
+            custom_data=[list(range(len(dff)))],  # Store indices for selection
         )
         fig.update_layout(
             plot_bgcolor="white",
@@ -1206,24 +1315,51 @@ def create_dashboard(df: pd.DataFrame, title: str = "XR-Linter Dashboard") -> Da
             xaxis=dict(showgrid=True, gridcolor=COLORS["border"], zeroline=True),
             yaxis=dict(showgrid=True, gridcolor=COLORS["border"], zeroline=True),
             height=500,
+            dragmode="select",  # Enable box/lasso select by default
         )
         return fig
 
     @app.callback(
         Output("data-table", "children"),
+        Output("table-data-store", "data"),
         Input("file-filter", "value"),
         Input("group-filter", "value"),
         Input("variable-filter", "value"),
+        Input("target-type-filter", "value"),
         Input("scatter-x", "value"),
         Input("scatter-y", "value"),
+        Input("scatter-plot", "selectedData"),
     )
-    def update_table(file_val, group_val, variable_val, x_col, y_col):
-        dff = get_filtered_df(file_val, group_val, variable_val)
+    def update_table(
+        file_val, group_val, variable_val, target_type_val, x_col, y_col, selected_data
+    ):
+        dff = get_filtered_df(file_val, group_val, variable_val, target_type_val)
 
         if len(dff) == 0:
             return html.P(
                 "No data available", style={"color": COLORS["text_secondary"]}
-            )
+            ), None
+
+        # Filter by selected points if any
+        if (
+            selected_data
+            and "points" in selected_data
+            and len(selected_data["points"]) > 0
+        ):
+            # Extract the custom_data indices from selected points
+            selected_indices = [
+                point["pointIndex"] for point in selected_data["points"]
+            ]
+            # Filter to only selected rows
+            dff = dff.iloc[selected_indices]
+
+            if len(dff) == 0:
+                return html.P(
+                    "No points selected", style={"color": COLORS["text_secondary"]}
+                ), None
+
+        # Store the filtered data for export
+        stored_data = dff.to_json(date_format="iso", orient="split")
 
         # Create a copy and add index as a column if needed
         table_df = dff.head(500).copy()  # Limit to 500 rows for performance
@@ -1319,7 +1455,40 @@ def create_dashboard(df: pd.DataFrame, title: str = "XR-Linter Dashboard") -> Da
             sort_action="native",
             sort_mode="multi",
             page_size=100,
-        )
+        ), stored_data
+
+    @app.callback(
+        Output("download-data", "data"),
+        Input("export-button", "n_clicks"),
+        State("export-format", "value"),
+        State("table-data-store", "data"),
+        prevent_initial_call=True,
+    )
+    def export_data(_n_clicks, export_format, stored_data):
+        if not stored_data:
+            return None
+
+        # Reconstruct dataframe from stored JSON
+        import io
+
+        export_df = pd.read_json(stored_data, orient="split")
+
+        if export_format == "csv":
+            return dcc.send_data_frame(
+                export_df.to_csv, "linting_data.csv", index=False
+            )
+        elif export_format == "excel":
+            return dcc.send_data_frame(
+                export_df.to_excel, "linting_data.xlsx", index=False
+            )
+        elif export_format == "parquet":
+            # For parquet, we need to use a buffer
+            buffer = io.BytesIO()
+            export_df.to_parquet(buffer, index=False)
+            buffer.seek(0)
+            return dcc.send_bytes(buffer.getvalue, "linting_data.parquet")
+
+        return None
 
     return app
 
@@ -1349,7 +1518,7 @@ def launch_dashboard(
     # Create title from filename if not provided
     if title is None:
         filename = Path(parquet_file).stem
-        title = f"XR-Linter Dashboard - {filename}"
+        title = "Xinter Dashboard"
 
     # Create and run app
     app = create_dashboard(df, title)
