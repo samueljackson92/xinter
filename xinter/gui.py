@@ -882,6 +882,34 @@ def create_dashboard(df: pd.DataFrame, title: str = "Xinter Dashboard") -> Dash:
         if "nan_percent" not in dff.columns or len(dff) == 0:
             return go.Figure()
 
+        # Check if all values are the same (no variation)
+        unique_vals = dff["nan_percent"].nunique()
+        if unique_vals == 1:
+            # Create a simple bar chart showing the single value
+            single_val = dff["nan_percent"].iloc[0]
+            fig = go.Figure(
+                [
+                    go.Bar(
+                        x=[f"{single_val:.1%}"],
+                        y=[len(dff)],
+                        marker_color=COLORS["primary"],
+                        text=[f"{len(dff):,} datasets"],
+                        textposition="auto",
+                    )
+                ]
+            )
+            fig.update_layout(
+                plot_bgcolor="white",
+                paper_bgcolor="white",
+                font_family="Inter",
+                showlegend=False,
+                margin=dict(l=10, r=10, t=10, b=30),
+                xaxis=dict(title="NaN %"),
+                yaxis=dict(showgrid=True, gridcolor=COLORS["border"], title="Count"),
+                height=250,
+            )
+            return fig
+
         fig = px.histogram(
             dff,
             x="nan_percent",
@@ -925,6 +953,34 @@ def create_dashboard(df: pd.DataFrame, title: str = "Xinter Dashboard") -> Dash:
         if "infinite_percent" not in dff.columns or len(dff) == 0:
             return go.Figure()
 
+        # Check if all values are the same (no variation)
+        unique_vals = dff["infinite_percent"].nunique()
+        if unique_vals == 1:
+            # Create a simple bar chart showing the single value
+            single_val = dff["infinite_percent"].iloc[0]
+            fig = go.Figure(
+                [
+                    go.Bar(
+                        x=[f"{single_val:.1%}"],
+                        y=[len(dff)],
+                        marker_color=COLORS["accent"],
+                        text=[f"{len(dff):,} datasets"],
+                        textposition="auto",
+                    )
+                ]
+            )
+            fig.update_layout(
+                plot_bgcolor="white",
+                paper_bgcolor="white",
+                font_family="Inter",
+                showlegend=False,
+                margin=dict(l=10, r=10, t=10, b=30),
+                xaxis=dict(title="Inf %"),
+                yaxis=dict(showgrid=True, gridcolor=COLORS["border"], title="Count"),
+                height=250,
+            )
+            return fig
+
         fig = px.histogram(
             dff,
             x="infinite_percent",
@@ -967,6 +1023,34 @@ def create_dashboard(df: pd.DataFrame, title: str = "Xinter Dashboard") -> Dash:
 
         if "zero_percent" not in dff.columns or len(dff) == 0:
             return go.Figure()
+
+        # Check if all values are the same (no variation)
+        unique_vals = dff["zero_percent"].nunique()
+        if unique_vals == 1:
+            # Create a simple bar chart showing the single value
+            single_val = dff["zero_percent"].iloc[0]
+            fig = go.Figure(
+                [
+                    go.Bar(
+                        x=[f"{single_val:.1%}"],
+                        y=[len(dff)],
+                        marker_color=COLORS["secondary"],
+                        text=[f"{len(dff):,} datasets"],
+                        textposition="auto",
+                    )
+                ]
+            )
+            fig.update_layout(
+                plot_bgcolor="white",
+                paper_bgcolor="white",
+                font_family="Inter",
+                showlegend=False,
+                margin=dict(l=10, r=10, t=10, b=30),
+                xaxis=dict(title="Zero %"),
+                yaxis=dict(showgrid=True, gridcolor=COLORS["border"], title="Count"),
+                height=250,
+            )
+            return fig
 
         fig = px.histogram(
             dff,
@@ -1012,6 +1096,34 @@ def create_dashboard(df: pd.DataFrame, title: str = "Xinter Dashboard") -> Dash:
 
         if "negative_percent" not in dff.columns or len(dff) == 0:
             return go.Figure()
+
+        # Check if all values are the same (no variation)
+        unique_vals = dff["negative_percent"].nunique()
+        if unique_vals == 1:
+            # Create a simple bar chart showing the single value
+            single_val = dff["negative_percent"].iloc[0]
+            fig = go.Figure(
+                [
+                    go.Bar(
+                        x=[f"{single_val:.1%}"],
+                        y=[len(dff)],
+                        marker_color=COLORS["warning"],
+                        text=[f"{len(dff):,} datasets"],
+                        textposition="auto",
+                    )
+                ]
+            )
+            fig.update_layout(
+                plot_bgcolor="white",
+                paper_bgcolor="white",
+                font_family="Inter",
+                showlegend=False,
+                margin=dict(l=10, r=10, t=10, b=30),
+                xaxis=dict(title="Negative %"),
+                yaxis=dict(showgrid=True, gridcolor=COLORS["border"], title="Count"),
+                height=250,
+            )
+            return fig
 
         fig = px.histogram(
             dff,
@@ -1159,12 +1271,29 @@ def create_dashboard(df: pd.DataFrame, title: str = "Xinter Dashboard") -> Dash:
         Input("group-filter", "value"),
         Input("variable-filter", "value"),
         Input("target-type-filter", "value"),
+        Input("scatter-plot", "selectedData"),
     )
-    def update_stats(file_val, group_val, variable_val, target_type_val):
+    def update_stats(file_val, group_val, variable_val, target_type_val, selected_data):
         dff = get_filtered_df(file_val, group_val, variable_val, target_type_val)
 
         if len(dff) == 0:
             return go.Figure()
+
+        # Filter by selected points if any
+        if (
+            selected_data
+            and "points" in selected_data
+            and len(selected_data["points"]) > 0
+        ):
+            # Extract the custom_data indices from selected points
+            selected_indices = [
+                point["pointIndex"] for point in selected_data["points"]
+            ]
+            # Filter to only selected rows
+            dff = dff.iloc[selected_indices]
+
+            if len(dff) == 0:
+                return go.Figure()
 
         # Calculate range if min and max are available
         if "min" in dff.columns and "max" in dff.columns:
@@ -1230,7 +1359,7 @@ def create_dashboard(df: pd.DataFrame, title: str = "Xinter Dashboard") -> Dash:
             font_family="Inter",
             margin=dict(l=0, r=0, t=40, b=20),
             height=400,
-            title_text="Statistical Distribution by Group",
+            title_text="",
             title_x=0.5,
         )
         return fig
