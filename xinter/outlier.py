@@ -146,7 +146,9 @@ def detect_isolation_forest(
         return []
 
     features = df_clean[numeric_cols].to_numpy(dtype=float)
-    model = IsolationForest(contamination=contamination, random_state=random_state).fit(features)
+    model = IsolationForest(contamination=contamination, random_state=random_state).fit(
+        features
+    )
 
     issues: list[dict] = []
     for idx, (pred, score) in enumerate(
@@ -155,7 +157,11 @@ def detect_isolation_forest(
         if pred == -1:
             issues.append(
                 _make_finding(
-                    df_clean.iloc[idx], "__multivariate__", float("nan"), float(score), "medium"
+                    df_clean.iloc[idx],
+                    "__multivariate__",
+                    float("nan"),
+                    float(score),
+                    "medium",
                 )
             )
     return issues
@@ -238,9 +244,15 @@ def print_summary(report: dict, console: Console) -> None:
 
     table.add_row("[dim]Method[/dim]", f"[bold]{meta['method']}[/bold]")
     table.add_row("[dim]Threshold[/dim]", f"[bold]{meta['threshold']}[/bold]")
-    table.add_row("[dim]Variables scanned[/dim]", f"[bold]{meta['total_variables']:,}[/bold]")
-    table.add_row("[dim]Metrics analysed[/dim]", f"[bold]{len(meta['metrics_analyzed'])}[/bold]")
-    table.add_row("[dim]Total findings[/dim]", f"[bold]{summary['total_findings']}[/bold]")
+    table.add_row(
+        "[dim]Variables scanned[/dim]", f"[bold]{meta['total_variables']:,}[/bold]"
+    )
+    table.add_row(
+        "[dim]Metrics analysed[/dim]", f"[bold]{len(meta['metrics_analyzed'])}[/bold]"
+    )
+    table.add_row(
+        "[dim]Total findings[/dim]", f"[bold]{summary['total_findings']}[/bold]"
+    )
     table.add_row(
         "[dim]Affected variables[/dim]", f"[bold]{summary['affected_variables']}[/bold]"
     )
@@ -366,7 +378,9 @@ def main() -> None:
     write_output(report, output_path, fmt)
     print_summary(report, console)
 
-    console.print(f"[green]💾 Outlier report saved to:[/green] [bold]{output_path}[/bold]")
+    console.print(
+        f"[green]💾 Outlier report saved to:[/green] [bold]{output_path}[/bold]"
+    )
     console.print(f"[dim]   Format:   {fmt}[/dim]")
     console.print(f"[dim]   Findings: {len(issues)}[/dim]")
     console.print()
