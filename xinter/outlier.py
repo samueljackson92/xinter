@@ -5,36 +5,42 @@ import json
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Literal
+from typing import Literal, cast
 
 import numpy as np
 import pandas as pd
 from rich.console import Console
 from rich.table import Table
+from sklearn.ensemble import IsolationForest
 
 _IDENTITY_COLS = {"file_path", "group", "variable_name", "target_type"}
 
+_FMT_MAP: dict[str, Literal["json", "jsonl", "csv"]] = {
+    ".json": "json",
+    ".jsonl": "jsonl",
+    ".csv": "csv",
+}
+
 
 def load_report(path: Path) -> pd.DataFrame:
+    """Load a wide-format linting report from Parquet or CSV."""
     if not path.exists():
         print(f"Error: report file not found: {path}", file=sys.stderr)
         sys.exit(1)
     if path.suffix == ".parquet":
-        df = pd.read_parquet(path)
-        return df.reset_index(drop=True)
-    elif path.suffix == ".csv":
-        # cli.py saves CSV with index=True (default), so first column is the saved RangeIndex
-        df = pd.read_csv(path, index_col=0)
-        return df.reset_index(drop=True)
-    else:
-        print(
-            f"Error: unsupported format '{path.suffix}'. Use .parquet or .csv.",
-            file=sys.stderr,
-        )
-        sys.exit(1)
+        return pd.read_parquet(path).reset_index(drop=True)
+    if path.suffix == ".csv":
+        # cli.py saves CSV with index=True (default), so first column is the RangeIndex
+        return pd.read_csv(path, index_col=0).reset_index(drop=True)
+    print(
+        f"Error: unsupported format '{path.suffix}'. Use .parquet or .csv.",
+        file=sys.stderr,
+    )
+    sys.exit(1)
 
 
 def identify_numeric_columns(df: pd.DataFrame) -> tuple[list[str], list[str]]:
+    """Split DataFrame columns into analysable numeric and skipped columns."""
     all_cols = set(df.columns)
     numeric = set(df.select_dtypes(include="number", exclude=["bool"]).columns)
     candidates = numeric - _IDENTITY_COLS
@@ -48,13 +54,13 @@ def identify_numeric_columns(df: pd.DataFrame) -> tuple[list[str], list[str]]:
             constant.append(col)
 
     non_numeric = sorted(all_cols - numeric - _IDENTITY_COLS)
-    skipped = constant + non_numeric
-    return analysable, skipped
+    return analysable, constant + non_numeric
 
 
 def _make_finding(
     row: pd.Series, metric: str, value: float, score: float, severity: str
 ) -> dict:
+    """Build a single finding dict from a DataFrame row."""
     return {
         "file_path": str(row.get("file_path", "")),
         "group": row.get("group", None),
@@ -72,6 +78,7 @@ def detect_zscore(
     numeric_cols: list[str],
     threshold: float = 3.0,
 ) -> list[dict]:
+    """Flag per-metric outliers using the Z-score method."""
     issues: list[dict] = []
     for col in numeric_cols:
         vals = df[col].to_numpy(dtype=float)
@@ -94,6 +101,7 @@ def detect_iqr(
     numeric_cols: list[str],
     k: float = 1.5,
 ) -> list[dict]:
+    """Flag per-metric outliers using the IQR fence method."""
     issues: list[dict] = []
     for col in numeric_cols:
         vals = df[col].to_numpy(dtype=float)
@@ -105,17 +113,17 @@ def detect_iqr(
             continue
         lower = q1 - k * iqr
         upper = q3 + k * iqr
-        for idx, v in enumerate(vals):
-            if not np.isfinite(v):
+        for idx, val in enumerate(vals):
+            if not np.isfinite(val):
                 continue
-            if v < lower:
-                score = (lower - v) / iqr
-            elif v > upper:
-                score = (v - upper) / iqr
+            if val < lower:
+                score = (lower - val) / iqr
+            elif val > upper:
+                score = (val - upper) / iqr
             else:
                 continue
             severity = "high" if score > 3 else "medium"
-            issues.append(_make_finding(df.iloc[idx], col, v, score, severity))
+            issues.append(_make_finding(df.iloc[idx], col, val, score, severity))
     return issues
 
 
@@ -126,10 +134,8 @@ def detect_isolation_forest(
     random_state: int = 42,
     console: Console | None = None,
 ) -> list[dict]:
-    from sklearn.ensemble import IsolationForest
-
-    clean_mask = df[numeric_cols].notna().all(axis=1)
-    df_clean = df[clean_mask].reset_index(drop=True)
+    """Flag multivariate outlier rows using sklearn IsolationForest."""
+    df_clean = df[df[numeric_cols].notna().all(axis=1)].reset_index(drop=True)
 
     if len(df_clean) < 10:
         if console:
@@ -139,22 +145,24 @@ def detect_isolation_forest(
             )
         return []
 
-    X = df_clean[numeric_cols].to_numpy(dtype=float)
-    model = IsolationForest(contamination=contamination, random_state=random_state)
-    predictions = model.fit_predict(X)
-    scores = model.decision_function(X)
+    features = df_clean[numeric_cols].to_numpy(dtype=float)
+    model = IsolationForest(contamination=contamination, random_state=random_state).fit(features)
 
     issues: list[dict] = []
-    for local_idx, (pred, score) in enumerate(zip(predictions, scores)):
+    for idx, (pred, score) in enumerate(
+        zip(model.predict(features), model.decision_function(features))
+    ):
         if pred == -1:
-            row = df_clean.iloc[local_idx]
             issues.append(
-                _make_finding(row, "__multivariate__", float("nan"), float(score), "medium")
+                _make_finding(
+                    df_clean.iloc[idx], "__multivariate__", float("nan"), float(score), "medium"
+                )
             )
     return issues
 
 
 def build_summary(issues: list[dict]) -> dict:
+    """Aggregate a list of findings into a summary section."""
     affected = {i["variable_name"] for i in issues}
     metrics = sorted({i["metric"] for i in issues})
     severity_counts: dict[str, int] = {}
@@ -169,7 +177,7 @@ def build_summary(issues: list[dict]) -> dict:
     }
 
 
-def build_report(
+def build_report(  # pylint: disable=too-many-arguments,too-many-positional-arguments
     report_path: Path,
     method: str,
     threshold: float,
@@ -178,6 +186,7 @@ def build_report(
     total_variables: int,
     issues: list[dict],
 ) -> dict:
+    """Assemble the three-section output dict (metadata, summary, issues)."""
     return {
         "metadata": {
             "report_path": str(report_path.resolve()),
@@ -193,11 +202,8 @@ def build_report(
     }
 
 
-def write_output(
-    report: dict,
-    output_path: Path,
-    fmt: Literal["json", "jsonl", "csv"],
-) -> None:
+def write_output(report: dict, output_path: Path, fmt: str) -> None:
+    """Serialise the report to JSON, JSONL, or CSV."""
     if fmt == "json":
         output_path.write_text(json.dumps(report, indent=2, default=str))
     elif fmt == "jsonl":
@@ -207,7 +213,7 @@ def write_output(
         )
         lines.append(meta_line)
         output_path.write_text("\n".join(lines) + "\n")
-    elif fmt == "csv":
+    else:  # csv
         pd.DataFrame(report["issues"]).to_csv(output_path, index=False)
         meta_path = output_path.with_name(output_path.stem + "_meta.json")
         meta_path.write_text(
@@ -220,6 +226,7 @@ def write_output(
 
 
 def print_summary(report: dict, console: Console) -> None:
+    """Print a human-readable summary table to the console."""
     meta = report["metadata"]
     summary = report["summary"]
 
@@ -310,8 +317,10 @@ def main() -> None:
     report_path = Path(args.report)
     output_path = Path(args.output)
 
-    fmt_map = {".json": "json", ".jsonl": "jsonl", ".csv": "csv"}
-    fmt: Literal["json", "jsonl", "csv"] = args.format or fmt_map.get(output_path.suffix, "json")
+    fmt = cast(
+        Literal["json", "jsonl", "csv"],
+        args.format or _FMT_MAP.get(output_path.suffix, "json"),
+    )
 
     console.print()
     console.print("[bold cyan]🔍 XR Outlier Detection[/bold cyan]")
