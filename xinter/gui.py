@@ -1676,9 +1676,7 @@ def launch_dashboard(
     """
     # Load data
     df = load_parquet_file(parquet_file)
-    if "variable_name" in df.columns:
-        df = df.drop("variable_name", axis=1)
-    df = df.reset_index()
+    df = df.reset_index(drop=True)
 
     # Create title from filename if not provided
     if title is None:

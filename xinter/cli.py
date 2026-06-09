@@ -25,6 +25,20 @@ from xinter.core import lint_dataset_with_error_handling
 
 console = Console()
 
+_SUPPORTED_SUFFIXES = {".nc", ".zarr", ".h5", ".hdf5", ".csv", ".parquet"}
+
+
+def _expand_paths(paths: list[str]) -> list[str]:
+    expanded = []
+    for p in paths:
+        path = Path(p)
+        if path.is_dir():
+            for suffix in sorted(_SUPPORTED_SUFFIXES):
+                expanded.extend(str(f) for f in sorted(path.glob(f"*{suffix}")))
+        else:
+            expanded.append(p)
+    return expanded
+
 WORKER_TIMEOUT = int(
     os.environ.get("XINTER_WORKER_TIMEOUT", 60 * 5)
 )  # Default to 5 minutes
@@ -137,6 +151,7 @@ def main():
     )
 
     args = parser.parse_args()
+    files = _expand_paths(args.files)
 
     output_file = Path(args.output)
     tmp_dir = Path(tempfile.mkdtemp(dir="."))
@@ -152,13 +167,13 @@ def main():
     )
     console.print()
     console.print("[bold cyan]🔍 Starting XR Linter[/bold cyan]")
-    console.print(f"[dim]Files to process: {len(args.files)}[/dim]")
+    console.print(f"[dim]Files to process: {len(files)}[/dim]")
     console.print(f"[dim]Workers: {args.num_jobs if args.num_jobs else 'auto'}[/dim]")
     console.print()
 
     with mp.Pool(processes=args.num_jobs, maxtasksperchild=1) as pool:
         futures = [
-            (item, pool.apply_async(linting_func, (item,))) for item in args.files
+            (item, pool.apply_async(linting_func, (item,))) for item in files
         ]
         success_count, error_count, timeout_count = gather_results(futures)
 
@@ -201,10 +216,13 @@ def main():
         values="value",
     )
 
+    def _cast(converter):
+        return lambda x: None if x == "N/A" else converter(x)
+
     type_map = {
-        "int": int,
-        "float": float,
-        "bool": lambda x: x == "True",
+        "int": _cast(lambda x: int(float(x))),
+        "float": _cast(float),
+        "bool": _cast(lambda x: x == "True"),
         "str": str,
     }
 

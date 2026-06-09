@@ -661,9 +661,16 @@ class DiffChecker(NumericDataArrayChecker):
     description = "Mean of first differences"
 
     def check_numeric(self, var: xr.DataArray) -> LinterResult:
+        if var.ndim == 0:
+            return LinterResult(
+                value="N/A",
+                message="Variable is scalar; check skipped.",
+                success=True,
+            )
+        value = var.diff(dim=var.dims[0]).mean().item()
         return LinterResult(
-            value=var.diff(dim=list(var.dims)[0]).mean().item(),
-            message=f"Mean of first differences: {var.diff(dim=list(var.dims)[0]).mean().item()}",
+            value=value,
+            message=f"Mean of first differences: {value}",
             success=True,
         )
 

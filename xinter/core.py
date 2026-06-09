@@ -3,6 +3,7 @@ Core functionality for xinter: loading datasets, applying linters, and processin
 """
 
 import gc
+import warnings
 from typing import Optional, Literal
 from pathlib import Path
 from pydantic import BaseModel
@@ -46,9 +47,11 @@ def lint_dataset_with_error_handling(
         If successful, error_message is None. If failed, reports_dict is None.
     """
     try:
-        reports = lint_dataset(
-            file_path, group=group, check_coords=check_coords, channel_wise=channel_wise
-        )
+        with warnings.catch_warnings():
+            warnings.filterwarnings("ignore", category=RuntimeWarning)
+            reports = lint_dataset(
+                file_path, group=group, check_coords=check_coords, channel_wise=channel_wise
+            )
         reports = reports_to_dataframe([reports])
         reports["value_type"] = reports["value"].apply(lambda x: type(x).__name__)
         reports["value"] = reports["value"].astype(
@@ -59,8 +62,20 @@ def lint_dataset_with_error_handling(
         reports.to_parquet(f"{output_dir}/{name}_linting_report.parquet", index=False)
 
         return (file_path, None)
-    except (ValueError, RuntimeError, IOError, KeyError) as e:
+    except (ValueError, RuntimeError, IOError, KeyError, IndexError) as e:
         return (file_path, str(e))
+
+
+_TABULAR_SUFFIXES = {".csv", ".parquet"}
+
+
+def _load_tabular_as_dataset(file_path: str) -> xr.Dataset:
+    suffix = Path(file_path).suffix.lower()
+    if suffix == ".csv":
+        df = pd.read_csv(file_path)
+    else:
+        df = pd.read_parquet(file_path)
+    return df.to_xarray()
 
 
 def lint_dataset(
@@ -83,7 +98,10 @@ def lint_dataset(
     """
 
     if isinstance(obj, str):
-        dataset = xr.open_dataset(obj, group=group, engine=engine)
+        if Path(obj).suffix.lower() in _TABULAR_SUFFIXES:
+            dataset = _load_tabular_as_dataset(obj)
+        else:
+            dataset = xr.open_dataset(obj, group=group, engine=engine)
     else:
         dataset = obj
 
