@@ -39,6 +39,7 @@ def _expand_paths(paths: list[str]) -> list[str]:
             expanded.append(p)
     return expanded
 
+
 WORKER_TIMEOUT = int(
     os.environ.get("XINTER_WORKER_TIMEOUT", 60 * 5)
 )  # Default to 5 minutes
@@ -172,9 +173,7 @@ def main():
     console.print()
 
     with mp.Pool(processes=args.num_jobs, maxtasksperchild=1) as pool:
-        futures = [
-            (item, pool.apply_async(linting_func, (item,))) for item in files
-        ]
+        futures = [(item, pool.apply_async(linting_func, (item,))) for item in files]
         success_count, error_count, timeout_count = gather_results(futures)
 
     if error_count > 0 or timeout_count > 0:

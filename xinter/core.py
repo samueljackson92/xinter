@@ -50,7 +50,10 @@ def lint_dataset_with_error_handling(
         with warnings.catch_warnings():
             warnings.filterwarnings("ignore", category=RuntimeWarning)
             reports = lint_dataset(
-                file_path, group=group, check_coords=check_coords, channel_wise=channel_wise
+                file_path,
+                group=group,
+                check_coords=check_coords,
+                channel_wise=channel_wise,
             )
         reports = reports_to_dataframe([reports])
         reports["value_type"] = reports["value"].apply(lambda x: type(x).__name__)
