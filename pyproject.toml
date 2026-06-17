@@ -58,3 +58,4 @@ dev = [
 [project.scripts]
 xl = "xinter.cli:main"
 xl-gui = "xinter.gui:main"
+xl-outlier = "xinter.outlier:main"
